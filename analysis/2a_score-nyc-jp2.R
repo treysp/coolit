@@ -1,21 +1,13 @@
 library(keras)
-library(pbapply)
-library(ggplot2)
-library(stringr)
-library(ROCR)
-library(abind)
-library(sf)
-library(tidyr)
 library(raster)
-source("model-fun.R")
-source("util.R")
+library(coolit)
 
-test <- score_jp2_image_dir(
-  jp2_dir = "data/source_from-nyc-website/boro_manhattan_sp16",
-  jp2_aux_dir = "data/source_from-nyc-website/boro_manhattan_sp16",
+scores <- score_jp2_image_dir(
+  jp2_dir = "data/source_from-nyc-website/nyc_ortho_jp2",
+  jp2_aux_dir = "data/source_from-nyc-website/nyc_ortho_jp2/",
   model_params_dput_file = "output/multi-model-runs/2019-03-04/models/2019-03-04_20-49-33/run-parameters_dput.txt",
   model_h5_weights = "output/multi-model-runs/2019-03-04/models/2019-03-04_20-49-33/model_fine-tune-2.h5",
-  score_outdir = "output/2019-03-20/scored_manhattan",
+  score_outdir = "output/2019-03-31/scored_nyc",
   return_score = FALSE
 )
 

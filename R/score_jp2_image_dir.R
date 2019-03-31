@@ -43,7 +43,7 @@ score_jp2_image_dir <- function(jp2_dir, jp2_aux_dir,
                                 return_score = TRUE, verbose = FALSE,
                                 tile_overlap = 0, complete_image = FALSE) {
   # make paired list of img and aux files
-  jp2_files <- list.files(jp2_dir)
+  jp2_files <- list.files(jp2_dir, full.names = TRUE, recursive = TRUE)
   jp2_files <- jp2_files[grepl("\\.jp2$", jp2_files)]
   jp2_file_names <- data.frame(
     stub = str_match(jp2_files, "(.*?)\\.jp2$")[, 2],
@@ -51,7 +51,7 @@ score_jp2_image_dir <- function(jp2_dir, jp2_aux_dir,
     stringsAsFactors = FALSE
   )
 
-  jp2_aux_files <- list.files(jp2_aux_dir)
+  jp2_aux_files <- list.files(jp2_aux_dir, full.names = TRUE, recursive = TRUE)
   jp2_aux_files <- jp2_aux_files[grepl("\\.jp2\\.aux\\.xml$", jp2_aux_files)]
   jp2_aux_files <- data.frame(
     stub = str_match(jp2_aux_files, "(.*?)\\.jp2\\.aux\\.xml$$")[, 2],
@@ -81,8 +81,8 @@ score_jp2_image_dir <- function(jp2_dir, jp2_aux_dir,
     score_jp2_image(
       model_params = my_model_params,
       scoring_model = scoring_model,
-      jp2_path = file.path(jp2_dir, x[["img_file"]]),
-      jp2_aux_path = file.path(jp2_aux_dir, x[["aux_file"]]),
+      jp2_path = x[["img_file"]],
+      jp2_aux_path = x[["aux_file"]],
       score_outpath = file.path(score_outdir, paste0("img_", x[["stub"]], "_scores.rds")),
       return_score = return_score,
       verbose = verbose,

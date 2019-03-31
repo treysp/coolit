@@ -2,6 +2,7 @@
 % Please edit documentation in R/rgb2grey.R
 \name{rgb2grey}
 \alias{rgb2grey}
+\alias{rgb2gray}
 \title{Convert RGB to greyscale using 'average' or 'gleam' methods}
 \usage{
 rgb2grey(my_brick, method = c("ave", "gleam"))

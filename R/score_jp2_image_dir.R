@@ -1,12 +1,13 @@
 #' Score a directory of jp2 images with a Keras model
 #'
 #' @param jp2_dir Path to directory containing .jp2 image files
-#' @param jp2_aux_path Path to directory containing .jp2.aux.xml files with
-#'                     metadata about .jp2 image with corresponding name
+#' @param jp2_aux_dir Path to directory containing .jp2.aux.xml files with
+#'                    metadata about .jp2 image with corresponding name
 #'
-#' @param model_params_dput_file
 #' @param model_h5_weights Saved h5 weights from a trained keras model, used to score
 #'                         the image tiles.
+#' @param model_params_dput_file Path to file containing \code{dput} export of parameters
+#' used during training of the model contained in `model_h5_weights`.
 #'
 #' @param score_outdir Path to directory where results of image scoring should be save
 #' @param compress_score_rds Should saved score results be compressed
@@ -16,6 +17,8 @@
 #'                       See \code{\link{calc_tile_corners}}.
 #'
 #' @param complete_image See \code{\link{calc_tile_corners}}.
+#'
+#' @param verbose Should messages about current step being processes be printed to screen?
 #'
 #' @return List of data frame with one row for each tile, containing:
 #' - \code{jp2_path}

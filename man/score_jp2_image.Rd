@@ -10,7 +10,9 @@ score_jp2_image(model_params, scoring_model, jp2_path, jp2_aux_path,
   complete_image = FALSE)
 }
 \arguments{
-\item{scoring_model}{}
+\item{model_params}{Model parameters object created during model training}
+
+\item{scoring_model}{Trained keras model object}
 
 \item{jp2_path}{Path to .jp2 image files}
 
@@ -21,6 +23,8 @@ score_jp2_image(model_params, scoring_model, jp2_path, jp2_aux_path,
 \item{compress_score_rds}{Should saved score results be compressed}
 
 \item{return_score}{Should score results be returned as an R object by the function}
+
+\item{verbose}{Should messages about current step being processes be printed to screen?}
 
 \item{tile_overlap}{Number of pixel overlap in adjacent tiles (in both X and Y directions).
 See \code{\link{calc_tile_corners}}.}

@@ -52,7 +52,7 @@
 #' @importFrom pbapply pblapply
 #' @importFrom raster crop crs<- extent writeRaster nrow ncol nlayers dropLayer
 #' @importFrom stringr str_match
-split_brick_px <- function(brick, tile_w_px = 50L, tile_h_px = 50L, overlap = 0L,
+slice_raster_brick <- function(brick, tile_w_px = 50L, tile_h_px = 50L, overlap = 0L,
                            complete_image = TRUE, path = NULL, file_ext = "tif",
                            d_type = "INT1U", write_only = FALSE,
                            write_options = c('TFW=YES'), cl = NULL) {
@@ -140,5 +140,5 @@ split_brick_px <- function(brick, tile_w_px = 50L, tile_h_px = 50L, overlap = 0L
            X = seq_along(ext), fun = crop_fun, extents = ext,
            brick = brick, path = path, d_type = d_type, write_options = write_options)
 
-  return(tiles)
+  NULL
 }

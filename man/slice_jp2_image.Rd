@@ -25,6 +25,8 @@ of tiles will be created that include the excluded pixels but do NOT
 respect the overlap value. If FALSE and the dimensions do not conform,
 the set of tiles will omit some pixels on the right and bottom side
 of the source raster/image. See \code{\link{calc_tile_corners}}.}
+
+\item{verbose}{Should messages about current step being processes be printed to screen?}
 }
 \value{
 Data frame with one row for each tile, containing:

@@ -78,7 +78,7 @@ train_tower_model <- function(
 
   #### error checks --------------------------------
   # required arguments exists?
-  args_null <- setNames(sapply(params, is.null), names(params))
+  args_null <- stats::setNames(sapply(params, is.null), names(params))
   req_args_null <- args_null[!(names(args_null) == "small_layer_size") &
                                !(grepl("second_ft_", names(args_null)))]
 

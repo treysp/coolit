@@ -2,10 +2,15 @@
 % Please edit documentation in R/score_test_images.R
 \name{score_test_images}
 \alias{score_test_images}
-\title{score training test-set images}
+\title{Score training test-set images}
 \usage{
-score_test_images(img_dir)
+score_test_images(img_dir, model)
+}
+\arguments{
+\item{img_dir}{Directory containing images to score}
+
+\item{model}{Keras model to use for scoring}
 }
 \description{
-score training test-set images
+Score training test-set images
 }

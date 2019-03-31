@@ -1,7 +1,7 @@
 #' Score a jp2 image with a Keras model
 #'
-#' @param model_params
-#' @param scoring_model
+#' @param model_params Model parameters object created during model training
+#' @param scoring_model Trained keras model object
 #'
 #' @param jp2_path Path to .jp2 image files
 #' @param jp2_aux_path Path to .jp2.aux.xml file containing metadata about .jp2 image
@@ -19,6 +19,8 @@
 #'                       respect the overlap value. If FALSE and the dimensions do not conform,
 #'                       the set of tiles will omit some pixels on the right and bottom side
 #'                       of the source raster/image. See \code{\link{calc_tile_corners}}.
+#'
+#' @param verbose Should messages about current step being processes be printed to screen?
 #'
 #' @return Data frame with one row for each tile, containing:
 #' - \code{jp2_path}

@@ -12,6 +12,12 @@ score_jp2_image_dir(jp2_dir, jp2_aux_dir, model_params_dput_file,
 \arguments{
 \item{jp2_dir}{Path to directory containing .jp2 image files}
 
+\item{jp2_aux_dir}{Path to directory containing .jp2.aux.xml files with
+metadata about .jp2 image with corresponding name}
+
+\item{model_params_dput_file}{Path to file containing \code{dput} export of parameters
+used during training of the model contained in `model_h5_weights`.}
+
 \item{model_h5_weights}{Saved h5 weights from a trained keras model, used to score
 the image tiles.}
 
@@ -21,13 +27,12 @@ the image tiles.}
 
 \item{return_score}{Should list of score results be returned as an R object by the function}
 
+\item{verbose}{Should messages about current step being processes be printed to screen?}
+
 \item{tile_overlap}{Number of pixel overlap in adjacent tiles (in both X and Y directions).
 See \code{\link{calc_tile_corners}}.}
 
 \item{complete_image}{See \code{\link{calc_tile_corners}}.}
-
-\item{jp2_aux_path}{Path to directory containing .jp2.aux.xml files with
-metadata about .jp2 image with corresponding name}
 }
 \value{
 List of data frame with one row for each tile, containing:

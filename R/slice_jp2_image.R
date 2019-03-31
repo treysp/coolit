@@ -16,6 +16,8 @@
 #'                       the set of tiles will omit some pixels on the right and bottom side
 #'                       of the source raster/image. See \code{\link{calc_tile_corners}}.
 #'
+#' @param verbose Should messages about current step being processes be printed to screen?
+#'
 #' @return Data frame with one row for each tile, containing:
 #' - \code{jp2_path}
 #' - \code{jp2_aux_path}
@@ -30,14 +32,14 @@
 #' @importFrom xml2 as_list read_xml
 #' @importFrom sf st_crs st_sfc st_polygon
 #' @importFrom raster brick nlayers dropLayer extent crs
-#' @importFrom pbapply pblapply
+#' @importFrom pbapply pblapply pboptions
 #' @importFrom abind abind
 slice_jp2_image <- function(jp2_path, jp2_aux_path,
                             tile_n_rows, tile_n_cols,
                             tile_overlap = 0, complete_image = FALSE,
                             verbose = FALSE) {
   if (!verbose) {
-    opb <- pboptions(type="none")
+    opb <- pbapply::pboptions(type="none")
     on.exit(pboptions(opb))
   }
 
@@ -50,12 +52,12 @@ slice_jp2_image <- function(jp2_path, jp2_aux_path,
   if (verbose) message("Reading image.")
   jp2_xml <- xml2::as_list(xml2::read_xml(jp2_aux_path))
 
-  source_brick <- brick(jp2_path)
+  source_brick <- raster::brick(jp2_path)
 
   crs(source_brick) <- sf::st_crs(wkt = jp2_xml$PAMDataset$SRS[[1]])$proj4string
 
   if (nlayers(source_brick) > 3) {
-    source_brick <- dropLayer(source_brick, 4)
+    source_brick <- raster::dropLayer(source_brick, 4)
   }
 
   # create raster extents and sf polygons for each tile

@@ -12,7 +12,7 @@
 #'
 #' See PLoS One article referenced below.
 #'
-#' @alias rgb2gray
+#' @aliases rgb2gray
 #' @references
 #' \url{https://en.wikipedia.org/wiki/Grayscale#Converting_color_to_grayscale}
 #' \url{https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0029740}
@@ -23,7 +23,7 @@ rgb2grey <- function(my_brick, method = c("ave", "gleam")) {
 
   if (method == "gleam") {
     for (i in 1:3) {
-      temp_layer <- getValues(my_brick[[i]])
+      temp_layer <- raster::getValues(my_brick[[i]])
       temp_layer <- temp_layer / 255
 
       ifelse(temp_layer <= 0.04045, {
@@ -35,8 +35,8 @@ rgb2grey <- function(my_brick, method = c("ave", "gleam")) {
       my_brick[[i]] <- temp_layer
     }
 
-    temp_gamma_grey <- calc(my_brick, fun = mean)
-    temp_gamma_grey_values <- getValues(temp_gamma_grey)
+    temp_gamma_grey <- raster::calc(my_brick, fun = mean)
+    temp_gamma_grey_values <- raster::getValues(temp_gamma_grey)
 
     ifelse(temp_gamma_grey_values <= 0.0031308, {
       temp_gamma_grey_values <- temp_gamma_grey_values * 12.92
@@ -44,10 +44,10 @@ rgb2grey <- function(my_brick, method = c("ave", "gleam")) {
       temp_gamma_grey_values <- ((temp_gamma_grey_values ^ (1/2.2)) * 1.055) - 0.055
     })
 
-    temp_gamma_grey <- setValues(temp_gamma_grey, temp_gamma_grey_values)
-    temp_gamma_grey <- calc(temp_gamma_grey, fun = function(x) x * 255)
+    temp_gamma_grey <- raster::setValues(temp_gamma_grey, temp_gamma_grey_values)
+    temp_gamma_grey <- raster::calc(temp_gamma_grey, fun = function(x) x * 255)
   } else {
-    temp_gamma_grey <- calc(my_brick, fun = mean)
+    temp_gamma_grey <- raster::calc(my_brick, fun = mean)
   }
 
   temp_gamma_grey

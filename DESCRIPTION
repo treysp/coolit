@@ -1,6 +1,6 @@
 Package: coolit
 Type: Package
-Title: Identify water cooling towers from areal orthoimagery
+Title: Identify water cooling towers from aerial orthoimagery
 Version: 0.1.0
 Imports:
     abind,

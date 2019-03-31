@@ -101,7 +101,7 @@ slice_jp2_image <- function(jp2_path, jp2_aux_path,
 
   # create a 4d array for each tile, containing 1 [50, 50, 3] slice
   if (verbose) message("Converting image to array and slicing - may take a minute.")
-  source_brick_data <- as.array(source_brick)
+  source_brick_data <- raster::as.array(source_brick)
 
   tile_data$tile_array <- lapply(1:nrow(tile_data), function(i) {
     out <- array(NA, c(1, tile_n_cols, tile_n_rows, 3))

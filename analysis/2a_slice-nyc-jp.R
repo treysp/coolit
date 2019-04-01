@@ -43,3 +43,6 @@ pbapply::pblapply(images_to_slice, cl = cl, FUN = function(img) {
           file.path(out_dir, paste0(img[["stub"]], "_slices.rds")),
           compress = FALSE)
 })
+
+
+parallel::stopCluster(cl)

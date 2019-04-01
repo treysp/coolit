@@ -42,55 +42,7 @@ score_jp2_image_dir <- function(jp2_dir, jp2_aux_dir,
                                 score_outdir = NULL, compress_score_rds = FALSE,
                                 return_score = TRUE, verbose = FALSE,
                                 tile_overlap = 0, complete_image = FALSE) {
-  # make paired list of img and aux files
-  jp2_files <- list.files(jp2_dir, full.names = TRUE, recursive = TRUE)
-  jp2_files <- jp2_files[grepl("\\.jp2$", jp2_files)]
-
-  stub <- str_match(jp2_files, "(.*/)(.*?)\\.jp2$")
-  stub <- stub[, ncol(stub)]
-
-  if (any(duplicated(stub))) {
-    warning("Duplicated jp2 file stubs found. ",
-            "Only scoring first file for each duplicated stub.")
-  }
-
-  jp2_file_names <- data.frame(
-    stub = stub,
-    img_file = jp2_files,
-    stringsAsFactors = FALSE
-  )
-
-  jp2_file_names <- jp2_file_names[!duplicated(jp2_file_names$stub),]
-
-  jp2_aux_files <- list.files(jp2_aux_dir, full.names = TRUE, recursive = TRUE)
-  jp2_aux_files <- jp2_aux_files[grepl("\\.jp2\\.aux\\.xml$", jp2_aux_files)]
-
-  stub <- str_match(jp2_aux_files, "(.*/)(.*?)\\.jp2\\.aux\\.xml$")
-  stub <- stub[, ncol(stub)]
-
-  if (any(duplicated(stub))) {
-    warning("Duplicated jp2 file stubs found. ",
-            "Only scoring first file for each duplicated stub.")
-  }
-
-  jp2_aux_files <- data.frame(
-    stub = stub,
-    aux_file = jp2_aux_files,
-    stringsAsFactors = FALSE
-  )
-
-  jp2_aux_files <- jp2_aux_files[!duplicated(jp2_aux_files$stub),]
-
-  jp2_file_names <- merge(jp2_file_names, jp2_aux_files, by = "stub")
-
-  if (nrow(jp2_file_names) != length(jp2_files)) {
-    warning("Only scoring images with a corresponding aux file")
-  }
-
-  jp2_file_names <- jp2_file_names[
-    !is.na(jp2_file_names$img_file) & !is.na(jp2_file_names$aux_file)
-    ,
-    ]
+  jp2_file_names <- make_jp2_file_df(jp2_dir, jp2_aux_dir)
 
   images_to_score <- split(jp2_file_names, 1:nrow(jp2_file_names))
 

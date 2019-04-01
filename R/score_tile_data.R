@@ -24,8 +24,10 @@
 score_tile_data <- function(tile_data, model_params, scoring_model,
                            score_outpath = NULL, compress_score_rds = FALSE,
                            return_score = TRUE, keep_array = FALSE, verbose = FALSE) {
-  params <- as.list(environment())
-  model_params$scoring_params <- params
+  model_params$scoring_params <- list(
+    score_outpath = score_outpath, compress_score_rds = compress_score_rds,
+    return_score = return_score, keep_array = keep_array, verbose = verbose
+    )
 
   tile_array <- abind::abind(tile_data$tile_array, along = 1)
   tile_array <- tile_array / 255

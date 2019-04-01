@@ -23,13 +23,14 @@
 #' @export
 #' @importFrom pbapply pblapply
 #' @importFrom keras load_model_hdf5
+#' @importFrom stringr str_match
 score_tile_data_dir <- function(tile_data_dir,
                                 model_params_dput_file, model_h5_weights,
                                 score_outdir = NULL, compress_score_rds = FALSE,
                                 return_score = TRUE, keep_array = FALSE, verbose = FALSE) {
-  tile_data_files <- list.files
+  tile_data_files <- list.files(tile_data_dir, full.names = TRUE, recursive = TRUE)
 
-  images_to_score <- split(jp2_file_names, 1:nrow(jp2_file_names))
+  images_to_score <- split(tile_data_files, 1:length(tile_data_files))
 
   # load model and score
   my_model_params <- eval(parse(model_params_dput_file))
@@ -39,11 +40,13 @@ score_tile_data_dir <- function(tile_data_dir,
 
     tile_data <- readRDS(x)
 
+    score_outname <- stringr::str_match(x, "(.*/)(.*?)\\.rds$")[, 3]
+
     score_tile_data(
       tile_data = tile_data,
       model_params = my_model_params,
       scoring_model = scoring_model,
-      score_outpath = file.path(score_outdir, paste0("img_", x[["stub"]], "_scores.rds")),
+      score_outpath = file.path(score_outdir, paste0(score_outname, "_scores.rds")),
       return_score = return_score,
       keep_array = keep_array,
       verbose = verbose

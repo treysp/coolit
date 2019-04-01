@@ -1,6 +1,6 @@
-#' Score a jp2 image with a Keras model
+#' Score a sliced tile data frame with a Keras model
 #'
-#' @param img_data Data frame containing image slice data
+#' @param tile_data Data frame containing image slice data
 #'
 #' @param model_params Model parameters object created during model training
 #' @param scoring_model Trained keras model object

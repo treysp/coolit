@@ -23,7 +23,7 @@
 #' @importFrom keras predict_proba
 score_tile_data <- function(tile_data, model_params, scoring_model,
                            score_outpath = NULL, compress_score_rds = FALSE,
-                           return_score = TRUE, verbose = FALSE) {
+                           return_score = TRUE, keep_array = FALSE, verbose = FALSE) {
   params <- as.list(environment())
   model_params$scoring_params <- params
 
@@ -32,6 +32,10 @@ score_tile_data <- function(tile_data, model_params, scoring_model,
 
   # score tiles
   tile_data$predicted_probs <- predict_proba(scoring_model, tile_array)
+
+  if (!keep_array) {
+    tile_data$tile_array <- NULL
+  }
 
   # save
   if (!is.null(score_outpath)) {

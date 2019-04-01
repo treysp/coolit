@@ -26,7 +26,7 @@
 score_tile_data_dir <- function(tile_data_dir,
                                 model_params_dput_file, model_h5_weights,
                                 score_outdir = NULL, compress_score_rds = FALSE,
-                                return_score = TRUE, verbose = FALSE) {
+                                return_score = TRUE, keep_array = FALSE, verbose = FALSE) {
   tile_data_files <- list.files
 
   images_to_score <- split(jp2_file_names, 1:nrow(jp2_file_names))
@@ -45,6 +45,7 @@ score_tile_data_dir <- function(tile_data_dir,
       scoring_model = scoring_model,
       score_outpath = file.path(score_outdir, paste0("img_", x[["stub"]], "_scores.rds")),
       return_score = return_score,
+      keep_array = keep_array,
       verbose = verbose
     )
 

@@ -2,53 +2,65 @@ library(raster)
 library(sf)
 library(dplyr)
 library(ggplot2)
+library(data.table)
 
-# get tile scores
+# # compile tile scores and save
+# score_dir <- "F:/coolit/output/2019-03-31/scored_nyc_pre-sliced"
+# scores <- pbapply::pblapply(list.files(score_dir, full.names = TRUE), function(x) {
+#   out <- readRDS(x)
+#   out <- out[["tile_data"]]
+#
+#   out$source_img_aux <- NULL
+#   out$tile_id <- NULL
+#   out$x0 <- NULL
+#   out$x1 <- NULL
+#   out$y0 <- NULL
+#   out$y1 <- NULL
+#   out$extents <- NULL
+#
+#   out
+#   })
+#
+# scores_df <- bind_rows(scores) %>%
+#   mutate(
+#     unique_id = paste0(
+#       stringr::str_match(source_img, "(.*/)*(.*?)\\.jp2")[, 3],
+#       "_",
+#       tile_id
+#       ),
+#
+#     row_num = row_number()
+#     )
+#
+# scores_df$geometry <- do.call(c, scores_df$geometry)
+# scores_df <- st_sf(scores_df)
+#
+# saveRDS(scores_df, file.path(score_dir, "collated_scores.rds"))
+# saveRDS(scores_df[scores_df$predicted_probs >= .001, ],
+#         file.path(score_dir, "collated_scores001.rds"))
+
 score_dir <- "F:/coolit/output/2019-03-31/scored_nyc_pre-sliced"
-scores <- pbapply::pblapply(list.files(score_dir, full.names = TRUE)[600:700], function(x) {
-  out <- readRDS(x)
-  out <- out[["tile_data"]]
-  out$extents <- NULL
-  out
-  })
-
-scores_df <- bind_rows(scores) %>%
-  mutate(
-    unique_id = paste0(
-      stringr::str_match(source_img, "(.*/)*(.*?)\\.jp2")[, 3],
-      "_",
-      tile_id
-      ),
-
-    num_id = row_number()
-    )
-
-scores_df$geometry <- do.call(c, scores_df$geometry)
-scores_df <- st_sf(scores_df)
+scores_df <- readRDS(file.path(score_dir, "collated_scores001.rds"))
 
 # get NYC tower shapefile
 tower_shp <- st_read("C:/Users/wfu3-su/Desktop/tower-id/data/source_from-nyc-website/nyc_cooling-tower_shapefile")
 tower_shp <- st_transform(tower_shp, crs = st_crs(scores_df$geometry)$proj4string)
 tower_shp$num_id <- seq_len(nrow(tower_shp))
 
-tower_tile_intersect <- st_intersects(tower_shp, scores_df)
-tower_tile_intersect <- lapply(seq_along(tower_tile_intersect), function(i) {
-  if (length(tower_tile_intersect[[i]]) == 0) {
-    return(NULL)
-  } else {
-    data.frame(
-      tower_row = rep(i, length(tower_tile_intersect[[i]])),
-      tile_row = tower_tile_intersect[[i]]
-      )
-  }
-})
+score_tile_intersect <- st_intersects(scores_df, tower_shp)
+scores_df$tower_intersect <- sapply(score_tile_intersect,
+                                    function(x) if (length(x) == 0) FALSE else TRUE)
 
-tower_tile_intersect <- bind_rows(tower_tile_intersect)
+scores_dt <- data.table(scores_df)
+scores_dt[, pred_prob01 := round(predicted_probs, 2)]
 
-scores_df <- left_join(scores_df, tower_tile_intersect, by = c("num_id" = "tile_row"))
-scores_df_bounds <- st_union(scores_df$geometry)
+my_means <- scores_dt[, list(
+  mn_tower_intersect = mean(tower_intersect),
+  ct_tower_intersect = sum(tower_intersect)
+  ), by = pred_prob01]
 
-table(sapply(tower_tile_intersect, length))
-
-ggplot(data = scores_df) +
-  geom_histogram(aes(x = predicted_probs), binwidth = .001)
+ggplot(data = my_means) +
+  geom_line(aes(x = pred_prob01, y = mn_tower_intersect)) +
+  xlab("Predicted prob. of tower") +
+  ylab("Prop. of tiles with tower") +
+  theme_minimal()

@@ -16,7 +16,7 @@ library(fasterize)
 
 nyc_building <- readRDS("data/source_from-nyc-website/nyc_building-footprint.rds")
 
-# towers
+# identify towers that don't intersect with building polygons
 nyc_towers_orig <- st_read("data/source_from-nyc-website/nyc_cooling-tower_shapefile")
 nyc_towers <- st_transform(nyc_towers_orig, crs = st_crs(nyc_building))
 
@@ -39,40 +39,48 @@ nyc_tiles$has_bad_tower <- sapply(nyc_tiles_bad_tower, function(x) length(x) > 0
 nyc_tiles_bad <- nyc_tiles %>% filter(has_bad_tower == TRUE)
 
 # make overlay of towers on image
-make_raster_overlay <- function(base_raster, polygon_sf, outfilename = NULL) {
+make_raster_overlay <- function(base_raster, polygon_sf, outfilename = NULL, write_only = FALSE) {
   if (!is.raster(base_raster) &&
       is.character(base_raster) &&
       length(base_raster) == 1) {
 
-    base_raster <- brick(base_raster)
-    base_raster <- dropLayer(img, 4)
+    base_raster_path <- base_raster
 
-    jp2_xml <- xml2::as_list(xml2::read_xml(paste0(base_raster, ".aux.xml")))
+    base_raster <- brick(base_raster)
+    base_raster <- dropLayer(base_raster, 4)
+
+    jp2_xml <- xml2::as_list(xml2::read_xml(paste0(base_raster_path, ".aux.xml")))
 
     crs(base_raster) <- sf::st_crs(wkt = jp2_xml$PAMDataset$SRS[[1]])$proj4string
   }
 
   # rasterize
-  polygon_sf <-  <- st_transform(polygon_sf, crs = st_crs(base_raster))
+  polygon_sf <- lwgeom::st_transform_proj(polygon_sf,
+                                          crs = crs(base_raster)@projargs)
 
   polygon_sf$cell_val <- 250
   overlay_raster <- fasterize(polygon_sf, base_raster[[1]], "cell_val")
 
-  out <- base_raster
-  base_raster[[1]] <- max(out[[1]], overlay_raster, na.rm = TRUE)
+  base_raster[[1]] <- overlay(base_raster[[1]],
+                              overlay_raster,
+                              fun = function(x, y) pmax(x, y, na.rm = TRUE))
 
-  plotRGB(out)
+  plotRGB(base_raster)
 
   if (!is.null(outfilename)) {
     writeRaster(
-      out,
+      base_raster,
       outfilename,
       datatype = "INT1U",
       overwrite = TRUE
     )
   }
 
-  out
+  if (write_only) {
+    return(NULL)
+  } else {
+    return(base_raster)
+  }
 }
 
 bad_tower_img <- as.character(unique(nyc_tiles_bad$IMAGE))
@@ -84,8 +92,17 @@ bad_tower_paths <- sapply(bad_tower_img, function(x) {
   jp2_paths[grepl(x, jp2_paths)][1]
 })
 
+pbapply::pblapply(seq_along(bad_tower_paths), function(i) {
+  outfile <- file.path("c:/users/wfu3-su/desktop/temp",
+                      paste0(stringr::str_replace(bad_tower_img[i], "\\.jp2", ""), ".tif")
+                      )
 
-make_raster_overlay(base_raster = bad_tower_paths[1], nyc_towers_bad)
+  make_raster_overlay(base_raster = bad_tower_paths[i],
+                      polygon_sf = nyc_towers_bad,
+                      outfilename = outfile,
+                      write_only = TRUE)
+
+})
 
 # for MS building polygons
 test <- data.table::fread("c:/users/wfu3/desktop/NewYork/nyc_microsoft_orig.csv",

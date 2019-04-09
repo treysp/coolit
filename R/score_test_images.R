@@ -10,10 +10,27 @@
 #' @importFrom pbapply pblapply
 #' @importFrom abind abind
 #' @importFrom utils write.csv
-score_test_images <- function(img_dir, model) {
+#' @importFrom fs
+#' @importFrom stringr str_detect
+score_test_images <- function(img_dir, model, prop_notower = 0.1, out_filename) {
 before <- Sys.time()
 
-valid_files <- list.files(params$valid_dir, full.names = TRUE, recursive = TRUE)
+valid_files <- fs::dir_ls(
+  img_dir,
+  recursive = TRUE,
+  type = "file"
+  )
+
+notower <- valid_files[stringr::str_detect(valid_files, "notower")]
+tower <- valid_files[!stringr::str_detect(valid_files, "notower")]
+
+valid_files <- c(
+  tower,
+  notower[sample(c(TRUE, FALSE),
+                 prob = c(prop_notower, 1 - prop_notower),
+                 size = length(notower),
+                 replace = TRUE)]
+)
 
 img_dims <- dim(
   keras::image_to_array(
@@ -36,15 +53,17 @@ predicted_probs[["img_name"]] <- valid_files
 predicted_probs[["truth"]] <- as.numeric(!stringr::str_detect(valid_files, "notower"))
 
 utils::write.csv(predicted_probs,
-                 file = file.path(params$curr_model_dir, "predicted-probs.csv"),
+                 file = out_filename,
                  row.names = FALSE)
 
-params$scoring_time <- Sys.time() - before
+scoring_time <- Sys.time() - before
 message("Image scoring took ",
-        round(params$scoring_time, 3),
+        round(scoring_time, 3),
         " ",
-        attr(params$scoring_time, "units"),
+        attr(scoring_time, "units"),
         " to train.")
+
+predicted_probs
 
 # # score final layer activations if small layer present
 # if (params$add_small_final_layer) {

@@ -5,6 +5,9 @@ library(magick)
 
 set.seed(1)
 
+# where images should live
+base_dir <- "data/tiles_nyc"
+
 # make list of slice files containing towers
 slice_dir <- "output/2019-03-31/sliced_nyc"
 
@@ -36,8 +39,6 @@ tower_shp <- st_read("data/source_from-nyc-website/nyc_cooling-tower_shapefile")
 water_shp <- st_read("data/source_from-nyc-website/nyc_hydrography_shapefile")
 
 # create directories
-base_dir <- "data/tiles_nyc"
-
 dir.create(file.path(base_dir, "train"))
 dir.create(file.path(base_dir, "train/tower"))
 dir.create(file.path(base_dir, "train/notower"))
@@ -57,7 +58,8 @@ parallel::clusterEvalQ(cl, {
   library(sf)
   library(magick)
 })
-parallel::clusterExport(cl, c("slice_exclude", "base_dir", "tower_shp"))
+parallel::clusterExport(cl, c("slice_exclude", "base_dir",
+                              "tower_shp", "water_shp"))
 
 num_towers <- pbapply::pblapply(X = slice_rds, cl = cl, FUN = function(rds) {
   working <- readRDS(rds)
@@ -127,5 +129,65 @@ num_towers <- pbapply::pblapply(X = slice_rds, cl = cl, FUN = function(rds) {
 
 parallel::stopCluster(cl)
 
-# sample notower slices proportional to tower count
+# count towers per image
+tower_img <- c(
+  list.files(file.path(base_dir, "train/tower")),
+  list.files(file.path(base_dir, "validation/tower")),
+  list.files(file.path(base_dir, "test/tower"))
+)
 
+tower_img <- stringr::str_split_fixed(tower_img, "_", 2)[, 1]
+
+# sample notower slices proportional to tower count
+tower_img_count <- table(tower_img)
+
+total_tower_slices <- sum(tower_img_count)
+
+notower_probs <- sapply(tower_img_count, function(x) x / total_tower_slices)
+
+total_notower_slices <- total_tower_slices * 10
+
+notower_counts <- round(notower_probs * total_notower_slices)
+
+# copy sampled files to train/valid/split directories
+ncores <- parallel::detectCores() - 2
+cl <- parallel::makeCluster(ncores, outfile = "c:/users/wfu3/desktop/log.txt")
+parallel::clusterEvalQ(cl, {
+  library(fs)
+})
+parallel::clusterExport(cl, c("base_dir", "tower_img_count", "notower_counts"))
+
+copied_files <- pbapply::pblapply(seq_along(tower_img_count), function(i) {
+  img_files <- data.frame(
+    file_name = list.files(file.path(base_dir, "notower",
+                                     names(tower_img_count)[i]),
+                           pattern = "\\.png"),
+    file_name_full = list.files(file.path(base_dir, "notower",
+                                          names(tower_img_count)[i]),
+                                pattern = "\\.png", full.names = TRUE),
+    stringsAsFactors = FALSE
+  )
+
+  prop_img <- notower_counts[i] / nrow(img_files)
+
+  img_files <- img_files[sample(c(TRUE, FALSE),
+                                size = nrow(img_files),
+                                prob = c(prop_img, 1 - prop_img),
+                                replace = TRUE)
+                         ,
+                         , drop = FALSE]
+
+  img_files$status <- sample(c("train", "validation", "test"),
+                             size = nrow(img_files),
+                             prob = c(.7, .2, .1),
+                             replace = TRUE)
+
+  img_files$out_name <- paste0(base_dir, "/",
+                              img_files$status, "/",
+                              "notower/",
+                              img_files$file_name)
+
+  fs::file_copy(img_files$file_name_full, img_files$out_name, overwrite = TRUE)
+})
+
+parallel::stopCluster(cl)

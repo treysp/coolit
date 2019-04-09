@@ -30,8 +30,10 @@ slice_exclude <- data.frame(img_num = slice_exclude[, 1],
                             stringsAsFactors = FALSE)
 slice_exclude$exclude <- TRUE
 
-# get NYC tower shapefile
+# get NYC shapefiles
 tower_shp <- st_read("data/source_from-nyc-website/nyc_cooling-tower_shapefile")
+
+water_shp <- st_read("data/source_from-nyc-website/nyc_hydrography_shapefile")
 
 # create directories
 base_dir <- "data/tiles_nyc"
@@ -45,6 +47,7 @@ dir.create(file.path(base_dir, "validation/notower"))
 dir.create(file.path(base_dir, "test"))
 dir.create(file.path(base_dir, "test/tower"))
 dir.create(file.path(base_dir, "test/notower"))
+dir.create(file.path(base_dir, "notower"))
 
 # create slice images
 ncores <- parallel::detectCores() - 2
@@ -56,7 +59,7 @@ parallel::clusterEvalQ(cl, {
 })
 parallel::clusterExport(cl, c("slice_exclude", "base_dir", "tower_shp"))
 
-out <- pbapply::pblapply(X = slice_rds, cl = cl, FUN = function(rds) {
+num_towers <- pbapply::pblapply(X = slice_rds, cl = cl, FUN = function(rds) {
   working <- readRDS(rds)
   working$img_num <- str_match(working$source_img, "(.*/)(.*)\\.jp2")[, 3]
   working <- merge(working, slice_exclude,
@@ -66,15 +69,19 @@ out <- pbapply::pblapply(X = slice_rds, cl = cl, FUN = function(rds) {
   working$geometry <- do.call(c, working$geometry)
   working <- st_sf(working)
 
+  # identify slices that intersect with tower polygons
   tower_shp <- st_transform(tower_shp, crs = st_crs(working)$proj4string)
 
   tile_intersect <- st_intersects(working, tower_shp)
   working$tower_intersect <- sapply(tile_intersect,
                                     function(x) if (length(x) == 0) FALSE else TRUE)
+  rm(tile_intersect)
 
   tower <- working[working$tower_intersect == TRUE, ]
 
+  # save slices
   if (nrow(tower) > 0) {
+    # split towers across train/valid/test
     tower$status <- sample(c("train", "validation", "test"),
                            size = nrow(tower),
                            prob = c(.7, .2, .1),
@@ -85,14 +92,24 @@ out <- pbapply::pblapply(X = slice_rds, cl = cl, FUN = function(rds) {
                              tower$img_num, "_",
                              tower$tile_id, ".png")
 
+    # identify slices that are contained by water polygons
     notower <- working[working$tower_intersect == FALSE, ]
-    notower$status <- sample(c("train", "validation", "test"),
-                             size = nrow(notower),
-                             prob = c(.7, .2, .1),
-                             replace = TRUE)
+
+    water_shp <- st_transform(water_shp, crs = st_crs(working)$proj4string)
+
+    water_covers <- st_covered_by(notower, water_shp)
+    notower$water_covered <- sapply(water_covers,
+                                    function(x) if (length(x) == 0) FALSE else TRUE)
+    rm(water_covers)
+
+    notower <- notower[notower$water_covered == FALSE,]
+
+    # write all tower slices to `notower` directory so we can sample them later
+    dir.create(file.path(base_dir, "notower", unique(notower$img_num)))
+
     notower$out_name <- paste0(base_dir, "/",
-                               notower$status, "/",
                                "notower/",
+                               notower$img_num, "/",
                                notower$img_num, "_",
                                notower$tile_id, ".png")
 
@@ -104,7 +121,11 @@ out <- pbapply::pblapply(X = slice_rds, cl = cl, FUN = function(rds) {
       })
     })
   }
+
+  nrow(tower)
 })
 
 parallel::stopCluster(cl)
+
+# sample notower slices proportional to tower count
 

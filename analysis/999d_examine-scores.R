@@ -98,3 +98,6 @@ img_index <- st_transform(img_index, crs = st_crs(tower_shp))
 
 img_tower_int <- st_intersects(img_index, tower_shp)
 img_index$has_tower <- sapply(img_tower_int, function(x) length(x) > 0)
+
+saveRDS(img_index[img_index$has_tower,],
+        "output/2019-04-06/img-index_has-towers_2019-04-08.rds")

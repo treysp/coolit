@@ -164,17 +164,17 @@ train_tower_model <- function(
 
   # create and error check directories
   params$train_dir <- file.path(params$img_base_dir, params$img_dir, "train")
-  params$valid_dir <- file.path(params$img_base_dir, params$img_dir, "test")
+  params$valid_dir <- file.path(params$img_base_dir, params$img_dir, "valid")
 
   if (!(dir.exists(params$train_dir) && dir.exists(params$valid_dir))) {
-    stop("`img_dir` must contain 2 directories named 'train' and 'test'")
+    stop("`img_dir` must contain 2 directories named 'train' and 'validation'")
   }
 
   if (!(dir.exists(file.path(params$train_dir, "tower")) &&
         dir.exists(file.path(params$train_dir, "notower")) &&
         dir.exists(file.path(params$valid_dir, "tower")) &&
         dir.exists(file.path(params$valid_dir, "notower")))) {
-    stop("Both 'train' and 'test' directories must contain 2 ",
+    stop("Both 'train' and 'validation' directories must contain 2 ",
          "directories names 'tower' and 'notower'")
   }
 

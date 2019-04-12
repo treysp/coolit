@@ -4,15 +4,22 @@
 \alias{make_raster_overlay}
 \title{make overlay of towers on image}
 \usage{
-make_raster_overlay(base_raster, polygon_sf, outfilename = NULL,
-  write_only = FALSE)
+make_raster_overlay(base_raster, red_polygon_sf = NULL,
+  green_polygon_sf = NULL, blue_polygon_sf = NULL,
+  outfilename = NULL, write_only = FALSE)
 }
 \arguments{
 \item{base_raster}{Either a path to a jp2 image with paired .aux.xml file
 or an existing rasterBrick or rasterStack object with valid CRS}
 
-\item{polygon_sf}{SF data frame containing polygons to overlay on the
+\item{red_polygon_sf}{SF data frame containing polygons to overlay on the
 raster in the red layer}
+
+\item{green_polygon_sf}{SF data frame containing polygons to overlay on the
+raster in the green layer}
+
+\item{blue_polygon_sf}{SF data frame containing polygons to overlay on the
+raster in the blue layer}
 
 \item{outfilename}{Either file path for output raster or NULL}
 

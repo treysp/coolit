@@ -1,4 +1,5 @@
 library(coolit)
+library(tensorflow)
 library(keras)
 library(pbapply)
 library(ggplot2)
@@ -51,15 +52,15 @@ params <- list(
   # dense model params
   dense_optimizer = "rmsprop",
   dense_lr = 1e-5,
-  dense_steps_per_epoch = 200,
-  dense_epochs = 100,
+  dense_steps_per_epoch = 100,
+  dense_epochs = 50,
   dense_validation_steps = 50,
 
   # first fine-tune model params
   first_ft_unfreeze = "block4_conv1",
   first_ft_optimizer = "rmsprop",
   first_ft_lr = 1e-5,
-  first_ft_steps_per_epoch = 200,
+  first_ft_steps_per_epoch = 100,
   first_ft_epochs = 100,
   first_ft_validation_steps = 50,
 
@@ -68,7 +69,7 @@ params <- list(
   second_ft_unfreeze = "block3_conv1",
   second_ft_optimizer = "rmsprop",
   second_ft_lr = 5e-6,
-  second_ft_steps_per_epoch = 200,
+  second_ft_steps_per_epoch = 100,
   second_ft_epochs = 100,
   second_ft_validation_steps = 50
 

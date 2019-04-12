@@ -10,7 +10,7 @@
 #' @importFrom pbapply pblapply
 #' @importFrom abind abind
 #' @importFrom utils write.csv
-#' @importFrom fs
+#' @importFrom fs dir_ls
 #' @importFrom stringr str_detect
 score_test_images <- function(img_dir, model, prop_notower = 0.1, out_filename) {
 before <- Sys.time()

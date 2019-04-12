@@ -4,7 +4,7 @@
 \alias{score_test_images}
 \title{Score training test-set images}
 \usage{
-score_test_images(img_dir, model)
+score_test_images(img_dir, model, prop_notower = 0.1, out_filename)
 }
 \arguments{
 \item{img_dir}{Directory containing images to score}

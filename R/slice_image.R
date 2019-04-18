@@ -9,10 +9,10 @@
 #' @param proj4_string Optional proj4 string containing image projection information.
 #'                     Overriden by `img_xml_wkt_path` of `wkt_string` if present.
 #'
-#' @param tile_n_rows Number of rows in each tile. See \code{\link{calc_tile_corners}}.
-#' @param tile_n_cols Number of columns in each tile. See \code{\link{calc_tile_corners}}.
+#' @param slice_n_rows Number of rows in each tile. See \code{\link{calc_tile_corners}}.
+#' @param slice_n_cols Number of columns in each tile. See \code{\link{calc_tile_corners}}.
 #'
-#' @param tile_overlap Number of pixel overlap in adjacent tiles (in both X and Y directions).
+#' @param slice_overlap_px Number of pixel overlap in adjacent tiles (in both X and Y directions).
 #'                       See \code{\link{calc_tile_corners}}.
 #'
 #' @param complete_image If TRUE and the tile size and overlap dimensions do not conform to
@@ -32,7 +32,7 @@
 #' - List-column containing each tile's extent based on the source jp2's projected raster
 #' - sf geometry column containing each tile's sf polygon
 #' - List-column containing tile's RGB layers in a 4d array of dimension
-#' [1, \code{tile_n_cols}, \code{tile_n_rows}, 3]
+#' [1, \code{slice_n_cols}, \code{slice_n_rows}, 3]
 #'
 #' @export
 #' @importFrom xml2 as_list read_xml
@@ -40,15 +40,20 @@
 #' @importFrom raster brick nlayers dropLayer extent crs
 #' @importFrom pbapply pblapply pboptions
 #' @importFrom abind abind
-slice_image <- function(img_path, img_xml_wkt_path = NULL,
+slice_image <- function(img_path,
+                        slice_n_rows, slice_n_cols,
+                        slice_overlap_px = 0, complete_image = FALSE,
+                        img_xml_wkt_path = NULL,
                         wkt_string = NULL, proj4_string = NULL,
                         project_raster = FALSE,
-                        tile_n_rows, tile_n_cols,
-                        tile_overlap = 0, complete_image = FALSE,
                         verbose = FALSE) {
   if (!verbose) {
     opb <- pbapply::pboptions(type="none")
     on.exit(pboptions(opb))
+  }
+
+  if (missing(slice_n_rows) || missing(slice_n_cols)) {
+    stop("Arguments `slice_n_rows` and `slice_n_cols` are required.")
   }
 
   # read image
@@ -94,15 +99,24 @@ slice_image <- function(img_path, img_xml_wkt_path = NULL,
   }
 
   # create raster extents and sf polygons for each tile
-  tile_data <- calc_tile_corners(
+  tile_data <- calc_slice_corners(
     source_n_rows = nrow(source_brick),
     source_n_cols = ncol(source_brick),
-    tile_n_rows = tile_n_rows,
-    tile_n_cols = tile_n_cols
+    slice_n_rows = slice_n_rows,
+    slice_n_cols = slice_n_cols,
+    complete_image = complete_image
   )
 
-  tile_data <- cbind(source_img = img_path,
-                     source_img_aux = img_xml_wkt_path,
+  paths <- data.frame(source_img = rep(img_path, nrow(tile_data)),
+                      stringsAsFactors = FALSE)
+
+  if (!is.null(img_xml_wkt_path)) {
+    paths <- cbind(paths,
+                   source_img_aux = rep(img_xml_wkt_path, nrow(tile_data)),
+                   stringsAsFactors = FALSE)
+  }
+
+  tile_data <- cbind(paths,
                      tile_id = seq_len(nrow(tile_data)),
                      tile_data,
                      stringsAsFactors = FALSE)
@@ -137,7 +151,7 @@ slice_image <- function(img_path, img_xml_wkt_path = NULL,
   source_brick_data <- raster::as.array(source_brick)
 
   tile_data$tile_array <- lapply(1:nrow(tile_data), function(i) {
-    out <- array(NA, c(1, tile_n_cols, tile_n_rows, 3))
+    out <- array(NA, c(1, slice_n_cols, slice_n_rows, 3))
 
     out[1, , ,] <- source_brick_data[
       seq(tile_data[["y0"]][i], tile_data[["y1"]][i]),

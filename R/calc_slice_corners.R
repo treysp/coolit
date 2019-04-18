@@ -3,10 +3,10 @@
 #' @param source_n_rows Number of rows in source raster/image
 #' @param source_n_cols Number of columns in source raster/image
 #'
-#' @param tile_n_rows Number of rows in each tile
-#' @param tile_n_cols Number of columns in each tile
+#' @param slice_n_rows Number of rows in each tile
+#' @param slice_n_cols Number of columns in each tile
 #'
-#' @param tile_overlap Number of pixel overlap in adjacent tiles (in both X and Y directions)
+#' @param slice_overlap Number of pixel overlap in adjacent tiles (in both X and Y directions)
 #'
 #' @param complete_image If TRUE and the tile size and overlap dimensions do not conform to
 #'                       covering the entire source raster/image, an additional row and column
@@ -21,27 +21,27 @@
 #'
 #' @export
 #' @importFrom tidyr expand nesting
-calc_tile_corners <- function(source_n_rows, source_n_cols,
-                              tile_n_rows, tile_n_cols,
-                              tile_overlap = 0, complete_image = FALSE) {
-  tile_row_over <- tile_n_rows - tile_overlap
-  tile_col_over <- tile_n_cols - tile_overlap
+calc_slice_corners <- function(source_n_rows, source_n_cols,
+                               slice_n_rows, slice_n_cols,
+                               slice_overlap = 0, complete_image = FALSE) {
+  slice_row_over <- slice_n_rows - slice_overlap
+  slice_col_over <- slice_n_cols - slice_overlap
 
-  r1 <- seq(1, tile_row_over * (source_n_rows %/% tile_row_over), by = tile_row_over)
-  r1 <- r1[r1 <= (source_n_rows - tile_n_rows + 1)]
-  r2 <- r1 + (tile_n_rows - 1)
+  r1 <- seq(1, slice_row_over * (source_n_rows %/% slice_row_over), by = slice_row_over)
+  r1 <- r1[r1 <= (source_n_rows - slice_n_rows + 1)]
+  r2 <- r1 + (slice_n_rows - 1)
 
   if (complete_image && max(r2) < source_n_rows) {
-    r1 <- c(r1, source_n_rows - tile_n_rows + 1)
+    r1 <- c(r1, source_n_rows - slice_n_rows + 1)
     r2 <- c(r2, source_n_rows)
   }
 
-  c1 <- seq(1, tile_col_over * (source_n_cols %/% tile_col_over), by = tile_col_over)
-  c1 <- c1[c1 <= (source_n_cols - tile_n_cols + 1)]
-  c2 <- c1 + (tile_n_cols - 1)
+  c1 <- seq(1, slice_col_over * (source_n_cols %/% slice_col_over), by = slice_col_over)
+  c1 <- c1[c1 <= (source_n_cols - slice_n_cols + 1)]
+  c2 <- c1 + (slice_n_cols - 1)
 
   if (complete_image && max(c2) < source_n_rows) {
-    c1 <- c(c1, source_n_cols - tile_n_cols + 1)
+    c1 <- c(c1, source_n_cols - slice_n_cols + 1)
     c2 <- c(c2, source_n_cols)
   }
 

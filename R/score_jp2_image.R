@@ -11,14 +11,14 @@
 #' @param return_score Should score results be returned as an R object by the function
 #'
 #' @param tile_overlap Number of pixel overlap in adjacent tiles (in both X and Y directions).
-#'                       See \code{\link{calc_tile_corners}}.
+#'                       See \code{\link{calc_slice_corners}}.
 #'
 #' @param complete_image If TRUE and the tile size and overlap dimensions do not conform to
 #'                       covering the entire source raster/image, an additional row and column
 #'                       of tiles will be created that include the excluded pixels but do NOT
 #'                       respect the overlap value. If FALSE and the dimensions do not conform,
 #'                       the set of tiles will omit some pixels on the right and bottom side
-#'                       of the source raster/image. See \code{\link{calc_tile_corners}}.
+#'                       of the source raster/image. See \code{\link{calc_slice_corners}}.
 #'
 #' @param verbose Should messages about current step being processes be printed to screen?
 #'

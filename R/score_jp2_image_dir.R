@@ -14,9 +14,9 @@
 #' @param return_score Should list of score results be returned as an R object by the function
 #'
 #' @param tile_overlap Number of pixel overlap in adjacent tiles (in both X and Y directions).
-#'                       See \code{\link{calc_tile_corners}}.
+#'                       See \code{\link{calc_slice_corners}}.
 #'
-#' @param complete_image See \code{\link{calc_tile_corners}}.
+#' @param complete_image See \code{\link{calc_slice_corners}}.
 #'
 #' @param verbose Should messages about current step being processes be printed to screen?
 #'

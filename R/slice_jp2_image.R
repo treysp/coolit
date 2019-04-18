@@ -3,18 +3,18 @@
 #' @param jp2_path Path to .jp2 image files
 #' @param jp2_aux_path Path to .jp2.aux.xml file containing metadata about .jp2 image
 #'
-#' @param tile_n_rows Number of rows in each tile. See \code{\link{calc_tile_corners}}.
-#' @param tile_n_cols Number of columns in each tile. See \code{\link{calc_tile_corners}}.
+#' @param tile_n_rows Number of rows in each tile. See \code{\link{calc_slice_corners}}.
+#' @param tile_n_cols Number of columns in each tile. See \code{\link{calc_slice_corners}}.
 #'
 #' @param tile_overlap Number of pixel overlap in adjacent tiles (in both X and Y directions).
-#'                       See \code{\link{calc_tile_corners}}.
+#'                       See \code{\link{calc_slice_corners}}.
 #'
 #' @param complete_image If TRUE and the tile size and overlap dimensions do not conform to
 #'                       covering the entire source raster/image, an additional row and column
 #'                       of tiles will be created that include the excluded pixels but do NOT
 #'                       respect the overlap value. If FALSE and the dimensions do not conform,
 #'                       the set of tiles will omit some pixels on the right and bottom side
-#'                       of the source raster/image. See \code{\link{calc_tile_corners}}.
+#'                       of the source raster/image. See \code{\link{calc_slice_corners}}.
 #'
 #' @param verbose Should messages about current step being processes be printed to screen?
 #'
@@ -61,7 +61,7 @@ slice_jp2_image <- function(jp2_path, jp2_aux_path,
   }
 
   # create raster extents and sf polygons for each tile
-  tile_data <- calc_tile_corners(
+  tile_data <- calc_slice_corners(
     source_n_rows = nrow(source_brick),
     source_n_cols = ncol(source_brick),
     tile_n_rows = tile_n_rows,

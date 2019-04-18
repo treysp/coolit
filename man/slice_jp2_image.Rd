@@ -12,19 +12,19 @@ slice_jp2_image(jp2_path, jp2_aux_path, tile_n_rows, tile_n_cols,
 
 \item{jp2_aux_path}{Path to .jp2.aux.xml file containing metadata about .jp2 image}
 
-\item{tile_n_rows}{Number of rows in each tile. See \code{\link{calc_tile_corners}}.}
+\item{tile_n_rows}{Number of rows in each tile. See \code{\link{calc_slice_corners}}.}
 
-\item{tile_n_cols}{Number of columns in each tile. See \code{\link{calc_tile_corners}}.}
+\item{tile_n_cols}{Number of columns in each tile. See \code{\link{calc_slice_corners}}.}
 
 \item{tile_overlap}{Number of pixel overlap in adjacent tiles (in both X and Y directions).
-See \code{\link{calc_tile_corners}}.}
+See \code{\link{calc_slice_corners}}.}
 
 \item{complete_image}{If TRUE and the tile size and overlap dimensions do not conform to
 covering the entire source raster/image, an additional row and column
 of tiles will be created that include the excluded pixels but do NOT
 respect the overlap value. If FALSE and the dimensions do not conform,
 the set of tiles will omit some pixels on the right and bottom side
-of the source raster/image. See \code{\link{calc_tile_corners}}.}
+of the source raster/image. See \code{\link{calc_slice_corners}}.}
 
 \item{verbose}{Should messages about current step being processes be printed to screen?}
 }

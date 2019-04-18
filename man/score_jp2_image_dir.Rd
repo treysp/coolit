@@ -30,9 +30,9 @@ the image tiles.}
 \item{verbose}{Should messages about current step being processes be printed to screen?}
 
 \item{tile_overlap}{Number of pixel overlap in adjacent tiles (in both X and Y directions).
-See \code{\link{calc_tile_corners}}.}
+See \code{\link{calc_slice_corners}}.}
 
-\item{complete_image}{See \code{\link{calc_tile_corners}}.}
+\item{complete_image}{See \code{\link{calc_slice_corners}}.}
 }
 \value{
 List of data frame with one row for each tile, containing:

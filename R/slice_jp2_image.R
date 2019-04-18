@@ -3,10 +3,10 @@
 #' @param jp2_path Path to .jp2 image files
 #' @param jp2_aux_path Path to .jp2.aux.xml file containing metadata about .jp2 image
 #'
-#' @param tile_n_rows Number of rows in each tile. See \code{\link{calc_slice_corners}}.
-#' @param tile_n_cols Number of columns in each tile. See \code{\link{calc_slice_corners}}.
+#' @param slice_n_rows Number of rows in each tile. See \code{\link{calc_slice_corners}}.
+#' @param slice_n_cols Number of columns in each tile. See \code{\link{calc_slice_corners}}.
 #'
-#' @param tile_overlap Number of pixel overlap in adjacent tiles (in both X and Y directions).
+#' @param slice_overlap Number of pixel overlap in adjacent tiles (in both X and Y directions).
 #'                       See \code{\link{calc_slice_corners}}.
 #'
 #' @param complete_image If TRUE and the tile size and overlap dimensions do not conform to
@@ -26,7 +26,7 @@
 #' - List-column containing each tile's extent based on the source jp2's projected raster
 #' - sf geometry column containing each tile's sf polygon
 #' - List-column containing tile's RGB layers in a 4d array of dimension
-#' \[1, \code{tile_n_cols}, \code{tile_n_rows}, 3\]
+#' \[1, \code{slice_n_cols}, \code{slice_n_rows}, 3\]
 #'
 #' @export
 #' @importFrom xml2 as_list read_xml
@@ -35,8 +35,8 @@
 #' @importFrom pbapply pblapply pboptions
 #' @importFrom abind abind
 slice_jp2_image <- function(jp2_path, jp2_aux_path,
-                            tile_n_rows, tile_n_cols,
-                            tile_overlap = 0, complete_image = FALSE,
+                            slice_n_rows, slice_n_cols,
+                            slice_overlap = 0, complete_image = FALSE,
                             verbose = FALSE) {
   if (!verbose) {
     opb <- pbapply::pboptions(type="none")
@@ -64,8 +64,8 @@ slice_jp2_image <- function(jp2_path, jp2_aux_path,
   tile_data <- calc_slice_corners(
     source_n_rows = nrow(source_brick),
     source_n_cols = ncol(source_brick),
-    tile_n_rows = tile_n_rows,
-    tile_n_cols = tile_n_cols
+    slice_n_rows = slice_n_rows,
+    slice_n_cols = slice_n_cols
   )
 
   tile_data <- cbind(source_img = jp2_path,
@@ -104,7 +104,7 @@ slice_jp2_image <- function(jp2_path, jp2_aux_path,
   source_brick_data <- raster::as.array(source_brick)
 
   tile_data$tile_array <- lapply(1:nrow(tile_data), function(i) {
-    out <- array(NA, c(1, tile_n_cols, tile_n_rows, 3))
+    out <- array(NA, c(1, slice_n_cols, slice_n_rows, 3))
 
     out[1, , ,] <- source_brick_data[
       seq(tile_data[["y0"]][i], tile_data[["y1"]][i]),

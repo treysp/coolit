@@ -11,19 +11,19 @@ slice_image(img_path, slice_n_rows, slice_n_cols, slice_overlap_px = 0,
 \arguments{
 \item{img_path}{Path to image file that can be read by \code{\link[raster]{brick}}.}
 
-\item{slice_n_rows}{Number of rows in each tile. See \code{\link{calc_tile_corners}}.}
+\item{slice_n_rows}{Number of rows in each tile. See \code{\link{calc_slice_corners}}.}
 
-\item{slice_n_cols}{Number of columns in each tile. See \code{\link{calc_tile_corners}}.}
+\item{slice_n_cols}{Number of columns in each tile. See \code{\link{calc_slice_corners}}.}
 
 \item{slice_overlap_px}{Number of pixel overlap in adjacent tiles (in both X and Y directions).
-See \code{\link{calc_tile_corners}}.}
+See \code{\link{calc_slice_corners}}.}
 
 \item{complete_image}{If TRUE and the tile size and overlap dimensions do not conform to
 covering the entire source raster/image, an additional row and column
 of tiles will be created that include the excluded pixels but do NOT
 respect the overlap value. If FALSE and the dimensions do not conform,
 the set of tiles will omit some pixels on the right and bottom side
-of the source raster/image. See \code{\link{calc_tile_corners}}.}
+of the source raster/image. See \code{\link{calc_slice_corners}}.}
 
 \item{img_xml_wkt_path}{Optional path to .xml file containing metadata about
 image in WKT format.}

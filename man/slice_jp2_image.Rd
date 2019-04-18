@@ -4,19 +4,19 @@
 \alias{slice_jp2_image}
 \title{Slice a jp2 image into tiles for scoring with a Keras model}
 \usage{
-slice_jp2_image(jp2_path, jp2_aux_path, tile_n_rows, tile_n_cols,
-  tile_overlap = 0, complete_image = FALSE, verbose = FALSE)
+slice_jp2_image(jp2_path, jp2_aux_path, slice_n_rows, slice_n_cols,
+  slice_overlap = 0, complete_image = FALSE, verbose = FALSE)
 }
 \arguments{
 \item{jp2_path}{Path to .jp2 image files}
 
 \item{jp2_aux_path}{Path to .jp2.aux.xml file containing metadata about .jp2 image}
 
-\item{tile_n_rows}{Number of rows in each tile. See \code{\link{calc_slice_corners}}.}
+\item{slice_n_rows}{Number of rows in each tile. See \code{\link{calc_slice_corners}}.}
 
-\item{tile_n_cols}{Number of columns in each tile. See \code{\link{calc_slice_corners}}.}
+\item{slice_n_cols}{Number of columns in each tile. See \code{\link{calc_slice_corners}}.}
 
-\item{tile_overlap}{Number of pixel overlap in adjacent tiles (in both X and Y directions).
+\item{slice_overlap}{Number of pixel overlap in adjacent tiles (in both X and Y directions).
 See \code{\link{calc_slice_corners}}.}
 
 \item{complete_image}{If TRUE and the tile size and overlap dimensions do not conform to
@@ -37,7 +37,7 @@ Data frame with one row for each tile, containing:
 - List-column containing each tile's extent based on the source jp2's projected raster
 - sf geometry column containing each tile's sf polygon
 - List-column containing tile's RGB layers in a 4d array of dimension
-\[1, \code{tile_n_cols}, \code{tile_n_rows}, 3\]
+\[1, \code{slice_n_cols}, \code{slice_n_rows}, 3\]
 }
 \description{
 Slice a jp2 image into tiles for scoring with a Keras model

@@ -1,6 +1,6 @@
-#' Score a sliced tile data frame with a Keras model
+#' Score a data frame of image slices with a Keras model
 #'
-#' @param tile_data Data frame containing image slice data
+#' @param slice_data Data frame containing image slice data
 #'
 #' @param model_params Model parameters object created during model training
 #' @param scoring_model Trained keras model object
@@ -21,27 +21,27 @@
 #' @export
 #' @importFrom abind abind
 #' @importFrom keras predict_proba
-score_tile_data <- function(tile_data, model_params, scoring_model,
-                           score_outpath = NULL, compress_score_rds = FALSE,
-                           return_score = TRUE, keep_array = FALSE, verbose = FALSE) {
+score_slice_data <- function(slice_data, model_params, scoring_model,
+                             score_outpath = NULL, compress_score_rds = FALSE,
+                             return_score = TRUE, keep_array = FALSE, verbose = FALSE) {
   model_params$scoring_params <- list(
     score_outpath = score_outpath, compress_score_rds = compress_score_rds,
     return_score = return_score, keep_array = keep_array, verbose = verbose
     )
 
-  tile_array <- abind::abind(tile_data$tile_array, along = 1)
-  tile_array <- tile_array / 255
+  slice_array <- abind::abind(slice_data$slice_array, along = 1)
+  slice_array <- slice_array / 255
 
   # score tiles
-  tile_data$predicted_probs <- predict_proba(scoring_model, tile_array)
+  slice_data$predicted_probs <- predict_proba(scoring_model, slice_array)
 
   if (!keep_array) {
-    tile_data$tile_array <- NULL
+    slice_data$slice_array <- NULL
   }
 
   # save
   if (!is.null(score_outpath)) {
-    saveRDS(list(scoring_params = model_params, tile_data = tile_data),
+    saveRDS(list(scoring_params = model_params, slice_data = slice_data),
             file = score_outpath,
             compress = compress_score_rds)
   }
@@ -49,6 +49,6 @@ score_tile_data <- function(tile_data, model_params, scoring_model,
   if (!return_score) {
     return(NULL)
   } else {
-    return(tile_data)
+    return(slice_data)
   }
 }

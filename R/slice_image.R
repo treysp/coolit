@@ -9,18 +9,18 @@
 #' @param proj4_string Optional proj4 string containing image projection information.
 #'                     Overriden by `img_xml_wkt_path` of `wkt_string` if present.
 #'
-#' @param slice_n_rows Number of rows in each tile. See \code{\link{calc_tile_corners}}.
-#' @param slice_n_cols Number of columns in each tile. See \code{\link{calc_tile_corners}}.
+#' @param slice_n_rows Number of rows in each tile. See \code{\link{calc_slice_corners}}.
+#' @param slice_n_cols Number of columns in each tile. See \code{\link{calc_slice_corners}}.
 #'
 #' @param slice_overlap_px Number of pixel overlap in adjacent tiles (in both X and Y directions).
-#'                       See \code{\link{calc_tile_corners}}.
+#'                       See \code{\link{calc_slice_corners}}.
 #'
 #' @param complete_image If TRUE and the tile size and overlap dimensions do not conform to
 #'                       covering the entire source raster/image, an additional row and column
 #'                       of tiles will be created that include the excluded pixels but do NOT
 #'                       respect the overlap value. If FALSE and the dimensions do not conform,
 #'                       the set of tiles will omit some pixels on the right and bottom side
-#'                       of the source raster/image. See \code{\link{calc_tile_corners}}.
+#'                       of the source raster/image. See \code{\link{calc_slice_corners}}.
 #'
 #' @param verbose Should messages about current step being processes be printed to screen?
 #'
@@ -99,7 +99,7 @@ slice_image <- function(img_path,
   }
 
   # create raster extents and sf polygons for each tile
-  tile_data <- calc_slice_corners(
+  slice_data <- calc_slice_corners(
     source_n_rows = nrow(source_brick),
     source_n_cols = ncol(source_brick),
     slice_n_rows = slice_n_rows,
@@ -107,29 +107,29 @@ slice_image <- function(img_path,
     complete_image = complete_image
   )
 
-  paths <- data.frame(source_img = rep(img_path, nrow(tile_data)),
+  paths <- data.frame(source_img = rep(img_path, nrow(slice_data)),
                       stringsAsFactors = FALSE)
 
   if (!is.null(img_xml_wkt_path)) {
     paths <- cbind(paths,
-                   source_img_aux = rep(img_xml_wkt_path, nrow(tile_data)),
+                   source_img_aux = rep(img_xml_wkt_path, nrow(slice_data)),
                    stringsAsFactors = FALSE)
   }
 
-  tile_data <- cbind(paths,
-                     tile_id = seq_len(nrow(tile_data)),
-                     tile_data,
+  slice_data <- cbind(paths,
+                     slice_id = seq_len(nrow(slice_data)),
+                     slice_data,
                      stringsAsFactors = FALSE)
 
-  tile_extents <- split(tile_data, 1:NROW(tile_data))
+  slice_extents <- split(slice_data, 1:NROW(slice_data))
 
   if (verbose) message("Creating extents:")
-  tile_data$extents <- pblapply(tile_extents, function(x) {
+  slice_data$extents <- pblapply(slice_extents, function(x) {
     extent(source_brick, x[["y0"]], x[["y1"]], x[["x0"]], x[["x1"]])
   })
 
   if (verbose) message("Creating polygons:")
-  tile_data$geometry <- pblapply(tile_data$extents, function(x) {
+  slice_data$geometry <- pblapply(slice_data$extents, function(x) {
     st_sfc(
       st_polygon(
         list(
@@ -150,12 +150,12 @@ slice_image <- function(img_path,
   if (verbose) message("Converting image to array and slicing - may take a minute.")
   source_brick_data <- raster::as.array(source_brick)
 
-  tile_data$tile_array <- lapply(1:nrow(tile_data), function(i) {
+  slice_data$slice_array <- lapply(1:nrow(slice_data), function(i) {
     out <- array(NA, c(1, slice_n_cols, slice_n_rows, 3))
 
     out[1, , ,] <- source_brick_data[
-      seq(tile_data[["y0"]][i], tile_data[["y1"]][i]),
-      seq(tile_data[["x0"]][i], tile_data[["x1"]][i])
+      seq(slice_data[["y0"]][i], slice_data[["y1"]][i]),
+      seq(slice_data[["x0"]][i], slice_data[["x1"]][i])
       ,
       ]
 
@@ -163,14 +163,14 @@ slice_image <- function(img_path,
   })
 
   # # must transpose each layer to reassemble original brick
-  # temp <- crop(source_brick, tile_data$extents[[1]])
+  # temp <- crop(source_brick, slice_data$extents[[1]])
   # plotRGB(temp)
   #
-  # temp_array <- drop(tile_data$tile_array[[1]])
+  # temp_array <- drop(slice_data$slice_array[[1]])
   # temp_array[,,1] <- t(temp_array[,,1])
   # temp_array[,,2] <- t(temp_array[,,2])
   # temp_array[,,3] <- t(temp_array[,,3])
   # plotRGB(temp)
 
-  tile_data
+  slice_data
 }

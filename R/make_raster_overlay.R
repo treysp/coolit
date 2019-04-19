@@ -12,6 +12,9 @@
 #' @param blue_polygon_sf SF data frame containing polygons to overlay on the
 #' raster in the blue layer
 #'
+#' @param img_xml_wkt_path Optional path to .xml file containing metadata about
+#'                         image in WKT format.
+#'
 #' @param outfilename Either file path for output raster or NULL
 #'
 #' @param write_only TRUE for only saving raster to file, FALSE for returning
@@ -28,6 +31,7 @@ make_raster_overlay <- function(base_raster,
                                 red_polygon_sf = NULL,
                                 green_polygon_sf = NULL,
                                 blue_polygon_sf = NULL,
+                                img_xml_wkt_path = NULL,
                                 outfilename = NULL,
                                 write_only = FALSE) {
   if (is.null(red_polygon_sf) & is.null(blue_polygon_sf) &
@@ -42,11 +46,18 @@ make_raster_overlay <- function(base_raster,
     base_raster_path <- base_raster
 
     base_raster <- brick(base_raster_path)
-    base_raster <- dropLayer(base_raster, 4)
 
-    jp2_xml <- xml2::as_list(xml2::read_xml(paste0(base_raster_path, ".aux.xml")))
+    if (nlayers(base_raster) > 3) {
+      for (i in seq_len(nlayers(base_raster) - 3)) {
+        base_raster <- raster::dropLayer(base_raster, i + 3)
+      }
+    }
 
-    crs(base_raster) <- sf::st_crs(wkt = jp2_xml$PAMDataset$SRS[[1]])$proj4string
+    if (!is.null(img_xml_wkt_path)) {
+      jp2_xml <- xml2::as_list(xml2::read_xml(img_xml_wkt_path))
+
+      crs(base_raster) <- sf::st_crs(wkt = jp2_xml$PAMDataset$SRS[[1]])$proj4string
+    }
   }
 
   # rasterize
@@ -70,13 +81,13 @@ make_raster_overlay <- function(base_raster,
   }
 
   if (!is.null(green_polygon_sf)) {
-    message("Geen go\n")
-    base_raster <- my_rasterize(green_polygon_sf, 250, 2)
+    message("Green go\n")
+    base_raster <- my_rasterize(green_polygon_sf, 245, 2)
   }
 
   if (!is.null(blue_polygon_sf)) {
     message("Blue go\n")
-    base_raster <- my_rasterize(blue_polygon_sf, 250, 1)
+    base_raster <- my_rasterize(blue_polygon_sf, 250, 3)
   }
 
   plotRGB(base_raster)

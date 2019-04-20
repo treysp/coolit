@@ -9,15 +9,23 @@ library(raster)
 library(sf)
 
 # score train/test images
-# my_model <- load_model_hdf5(
-#   "output/multi-model-runs/2019-04-09/models/2019-04-09_16-17-24/model_fine-tune-2.h5"
-#   )
-#
-# temp_scores <- score_test_images(
-#   c("data/tiles_nyc/validation", "data/tiles_nyc/train"),
-#   my_model,
-#   out_filename = "output/multi-model-runs/2019-04-09/models/2019-04-09_16-17-24/predicted-probs_train-validation.csv"
-#   )
+my_model <- load_model_hdf5(
+  "output/multi-model-runs/2019-04-09/models/2019-04-09_16-17-24/model_fine-tune-2.h5"
+  )
+
+temp_scores <- score_test_images(
+  "data/tiles_nyc/validation",
+  my_model,
+  out_filename = "output/multi-model-runs/2019-04-09/models/2019-04-09_16-17-24/predicted-probs_train-validation.csv"
+  )
+
+temp_scores2 <- score_test_images(
+  "data/tiles_nyc/train",
+  my_model,
+  out_filename = "output/multi-model-runs/2019-04-09/models/2019-04-09_16-17-24/predicted-probs_train-validation.csv"
+)
+
+temp_scores <- rbind(temp_scores, temp_scores2)
 
 # check some scores
 temp_scores <- read.csv(
@@ -91,24 +99,61 @@ for (i in 1:((nrow(highprob_notowers) %/% 24) + 1)) {
 }
 
 # make raster overlays
-overlay_towers <- rbind(
-  highprob_notowers[grepl("990215", highprob_notowers$img_name),],
-  lowprob_towers[grepl("990215", highprob_notowers$img_name),]
-)
+overlay_towers <- temp_scores[
+  grepl("990212", temp_scores$img_name) &
+    temp_scores$pred_prob >= 0.1,
+  ]
 overlay_towers$tile_id <- as.numeric(stringr::str_match(
-  overlay_towers$img_name, "(.*/)\\d*_(\\d*)\\.png"
-  )[, 3]
+  overlay_towers$img_name, "(.*/)\\d*_(\\d*)\\.png")[, 3]
+)
+
+overlay_towers_high <- highprob_notowers[
+  grepl("990212", highprob_notowers$img_name),
+  ]
+overlay_towers_high$tile_id <- as.numeric(stringr::str_match(
+  overlay_towers_high$img_name, "(.*/)\\d*_(\\d*)\\.png")[, 3]
+)
+
+overlay_towers_low <- lowprob_towers[
+  grepl("990212", highprob_notowers$img_name),
+  ]
+overlay_towers_low$tile_id <- as.numeric(stringr::str_match(
+  overlay_towers_low$img_name, "(.*/)\\d*_(\\d*)\\.png")[, 3]
   )
 
-overlay_towers_sf <- readRDS("output/2019-03-31/sliced_nyc/990215_slices.rds")
+overlay_towers_sf <- readRDS("output/2019-03-31/sliced_nyc/990212_slices.rds")
 overlay_towers_sf$geometry <- st_sfc(do.call("c", overlay_towers_sf$geometry))
 overlay_towers_sf <- st_sf(overlay_towers_sf)
 
-overlay_towers_sf <- merge(overlay_towers_sf, overlay_towers, by = "tile_id")
+overlay_towers_sf <- merge(overlay_towers_sf,
+                           overlay_towers,
+                           by = "tile_id")
+
+overlay_towers_sf_high <- merge(overlay_towers_sf,
+                                overlay_towers_high,
+                                by = "tile_id")
+
+overlay_towers_sf_low <- merge(overlay_towers_sf,
+                                overlay_towers_low,
+                                by = "tile_id")
+
+base_raster_path <- "data/source_from-nyc-website/nyc_ortho_jp2/boro_manhattan_sp16/990212.jp2"
+base_raster <- brick(base_raster_path)
+base_raster <- dropLayer(base_raster, 4)
+
+jp2_xml <- xml2::as_list(xml2::read_xml(paste0(base_raster_path, ".aux.xml")))
+
+crs(base_raster) <- sf::st_crs(wkt = jp2_xml$PAMDataset$SRS[[1]])$proj4string
+
+nyc_towers <- st_read("data/source_from-nyc-website/nyc_cooling-tower_shapefile")
+nyc_towers <- lwgeom::st_transform_proj(nyc_towers,
+                                        crs = crs(base_raster)@projargs)
 
 make_raster_overlay(
-  base_raster = "data/source_from-nyc-website/nyc_ortho_jp2/boro_manhattan_sp16/990215.jp2",
-  polygon_sf = overlay_towers_sf,
+  base_raster = base_raster,
+  red_polygon_sf = overlay_towers_sf,
+  green_polygon_sf = overlay_towers_sf_low,
+  blue_polygon_sf = nyc_towers,
   outfilename = "c:/users/wfu3/desktop/test.tif",
   write_only = TRUE
 )

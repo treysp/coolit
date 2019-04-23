@@ -5,189 +5,344 @@ library(magick)
 
 set.seed(1)
 
+# PARAMETER: total number randomly selected notower images to use
+num_notower <- 10000
+
 # where images should live
-base_dir <- "data/tiles_nyc"
+base_dir <- "data/model-training-data/slices_curated_2019-04-22"
 
-# make list of slice files containing towers
-slice_dir <- "output/2019-03-31/sliced_nyc"
+for (i in c("train", "validation", "test")) {
 
-img_tower <- readRDS("output/2019-04-06/img-index_has-towers_2019-04-08.rds")
-img_tower$img_num <- as.character(img_tower$IMAGE)
-img_tower$img_num <- gsub("\\.jp2", "", img_tower$img_num)
-img_tower <- unique(img_tower$img_num)
+  dir.create(file.path(base_dir, i))
+  dir.create(file.path(base_dir, i, "tower"))
+  dir.create(file.path(base_dir, i, "notower"))
 
-slice_rds <- list.files(slice_dir, full.names = TRUE)
-slice_rds <- slice_rds[sapply(img_tower, function(x) str_which(slice_rds, x))]
+}
 
-# make list of slices to exclude due to obstruction
-slice_exclude <- list.dirs("output/2019-04-06/low-prob-tower-slices",
-                            recursive = TRUE, full.names = TRUE)
-slice_exclude <- slice_exclude[str_detect(slice_exclude, "/obstruction")]
-slice_exclude <- fs::dir_ls(slice_exclude, type = "file")
-slice_exclude <- fs::path_file(slice_exclude)
-slice_exclude <- str_replace(slice_exclude, "\\.png", "")
-slice_exclude <- str_split(slice_exclude, "_")
-slice_exclude <- do.call("rbind", slice_exclude)
-slice_exclude <- data.frame(img_num = slice_exclude[, 1],
-                            tile_id = as.numeric(slice_exclude[, 2]),
-                            stringsAsFactors = FALSE)
-slice_exclude$exclude <- TRUE
-
-# get NYC shapefiles
-tower_shp <- st_read("data/source_from-nyc-website/nyc_cooling-tower_shapefile")
-
-water_shp <- st_read("data/source_from-nyc-website/nyc_hydrography_shapefile")
-
-# create directories
-dir.create(file.path(base_dir, "train"))
-dir.create(file.path(base_dir, "train/tower"))
-dir.create(file.path(base_dir, "train/notower"))
-dir.create(file.path(base_dir, "validation"))
-dir.create(file.path(base_dir, "validation/tower"))
-dir.create(file.path(base_dir, "validation/notower"))
-dir.create(file.path(base_dir, "test"))
-dir.create(file.path(base_dir, "test/tower"))
-dir.create(file.path(base_dir, "test/notower"))
 dir.create(file.path(base_dir, "notower"))
 
-# create slice images
-ncores <- parallel::detectCores() - 2
+#### NYC preparation --------------------------------------------------------------------
+# get obstructed tower slice list
+nyc_obstructed <- readr::read_csv(
+  file.path("data/curated-training-slices/nyc/nyc-towers",
+            "nyc_obstructed-tower-slice-list_2019-04-23.csv"))
+
+nyc_obstructed$exclude <- TRUE
+
+# get tower slices
+nyc_tower_slices <- lapply(
+  list.files("data/curated-training-slices/nyc/nyc-towers",
+             full.names = TRUE, pattern = "\\.rds"),
+  readRDS
+)
+
+nyc_tower_slices <- do.call("rbind", nyc_tower_slices)
+
+nyc_tower_slices$img_num <- str_match(nyc_tower_slices$source_img,
+                                      "(.*/)(\\d*)\\.jp2")[, 3]
+
+# remove obstructed towers
+nyc_tower_slices <- merge(nyc_tower_slices,
+                          nyc_obstructed[, c("img_num", "tile_id", "exclude")],
+                          by = c("img_num", "tile_id"),
+                          all.x = TRUE)
+
+nyc_tower_slices <- nyc_tower_slices[is.na(nyc_tower_slices$exclude),]
+nyc_tower_slices$exclude <- NULL
+
+# assign train/validation/test status
+nyc_tower_slices$status <- sample(c("train", "validation", "test"),
+                                  size = nrow(nyc_tower_slices),
+                                  prob = c(.7, .2, .1),
+                                  replace = TRUE)
+
+nyc_tower_slices$out_name <- paste0(base_dir, "/",
+                                    nyc_tower_slices$status, "/",
+                                    "tower/",
+                                    nyc_tower_slices$img_num, "_",
+                                    nyc_tower_slices$tile_id, ".png")
+
+nyc_tower_index <- nyc_tower_slices[, c("img_num", "tile_id")]
+nyc_tower_index$exclude <- TRUE
+
+# count tower/img for notower sampling
+nyc_tower_img_count <- table(nyc_tower_slices$img_num)
+nyc_tower_img_count <- data.frame(
+  img_num = names(nyc_tower_img_count),
+  count = as.integer(nyc_tower_img_count),
+  stringsAsFactors = FALSE
+)
+
+nyc_tower_img_count$prop <- nyc_tower_img_count$count /
+  sum(nyc_tower_img_count$count)
+
+# get high-prob notower slices
+nyc_highprob <- lapply(
+  list.files("data/curated-training-slices/nyc/nyc-highprob-notowers",
+             full.names = TRUE, pattern = "\\.rds"),
+  readRDS
+)
+
+nyc_highprob <- do.call("rbind", nyc_highprob)
+
+nyc_highprob$img_num <- str_match(nyc_highprob$source_img,
+                                  "(.*/)(\\d*)\\.jp2")[, 3]
+
+nyc_highprob$status <- sample(c("train", "validation", "test"),
+                              size = nrow(nyc_highprob),
+                              prob = c(.7, .2, .1),
+                              replace = TRUE)
+
+nyc_highprob$out_name <- paste0(base_dir, "/",
+                                nyc_highprob$status, "/",
+                                "notower/",
+                                nyc_highprob$img_num, "_",
+                                nyc_highprob$tile_id, ".png")
+
+#### Philly preparation --------------------------------------------------------------------
+# get tower slices
+philly_tower_slices <- lapply(
+  list.files("data/curated-training-slices/philly/philly-towers",
+             full.names = TRUE, pattern = "\\.rds"),
+  readRDS
+)
+
+philly_tower_slices <- do.call("rbind", philly_tower_slices)
+
+philly_tower_slices$img_num <- str_match(philly_tower_slices$source_img,
+                                         "(.*/)(.*)\\.tif")[, 3]
+
+# assign train/validation/test status
+philly_tower_slices$status <- sample(c("train", "validation", "test"),
+                                     size = nrow(philly_tower_slices),
+                                     prob = c(.7, .2, .1),
+                                     replace = TRUE)
+
+philly_tower_slices$out_name <- paste0(base_dir, "/",
+                                       philly_tower_slices$status, "/",
+                                       "tower/",
+                                       philly_tower_slices$img_num, "_",
+                                       philly_tower_slices$tile_id, ".png")
+
+# count tower/img for notower sampling
+philly_tower_img_count <- table(philly_tower_slices$img_num)
+philly_tower_img_count <- data.frame(
+  img_num = names(philly_tower_img_count),
+  count = as.integer(philly_tower_img_count),
+  stringsAsFactors = FALSE
+)
+
+philly_tower_img_count$prop <- philly_tower_img_count$count /
+  sum(philly_tower_img_count$count)
+
+# get high-prob notower slices
+philly_highprob <- lapply(
+  list.files("data/curated-training-slices/philly/philly-highprob-notowers",
+             full.names = TRUE, pattern = "\\.rds"),
+  readRDS
+)
+
+philly_highprob <- do.call("rbind", philly_highprob)
+
+philly_highprob$img_num <- str_match(philly_highprob$source_img,
+                                  "(.*/)(\\d*)\\.tif")[, 3]
+
+philly_highprob$status <- sample(c("train", "validation", "test"),
+                                 size = nrow(philly_highprob),
+                                 prob = c(.7, .2, .1),
+                                 replace = TRUE)
+
+philly_highprob$out_name <- paste0(base_dir, "/",
+                                   philly_highprob$status, "/",
+                                   "notower/",
+                                   philly_highprob$img_num, "_",
+                                   philly_highprob$tile_id, ".png")
+
+#### write images ---------------------------------------------------------------------
+# setup cluster
+ncores <- parallel::detectCores() - 1
+
 cl <- parallel::makeCluster(ncores, outfile = "c:/users/wfu3/desktop/log.txt")
+
 parallel::clusterEvalQ(cl, {
   library(stringr)
   library(sf)
   library(magick)
 })
+
 parallel::clusterExport(cl, c("slice_exclude", "base_dir",
                               "tower_shp", "water_shp"))
 
-num_towers <- pbapply::pblapply(X = slice_rds, cl = cl, FUN = function(rds) {
-  working <- readRDS(rds)
-  working$img_num <- str_match(working$source_img, "(.*/)(.*)\\.jp2")[, 3]
-  working <- merge(working, slice_exclude,
+# tower images
+## nyc
+tower_index <- rep(1:ncores, each = nrow(nyc_tower_slices) %/% ncores)
+tower_index <- c(
+  tower_index,
+  rep(tail(tower_index, 1), nrow(nyc_tower_slices) - length(tower_index))
+)
+
+nyc_tower_list <- split(nyc_tower_slices, tower_index)
+
+pbapply::pblapply(X = nyc_tower_list, cl = cl, FUN = function(x) {
+  for (i in seq_len(nrow(x))) {
+    magick::image_write(
+      image = image_read(drop(x[i, "tile_array", drop = TRUE][[1]]) / 255),
+      path = x[i, "out_name", drop = TRUE])
+  }
+})
+
+## philly
+tower_index <- rep(1:ncores, each = nrow(philly_tower_slices) %/% ncores)
+tower_index <- c(
+  tower_index,
+  rep(tail(tower_index, 1), nrow(philly_tower_slices) - length(tower_index))
+)
+
+philly_tower_list <- split(philly_tower_slices, tower_index)
+
+pbapply::pblapply(X = philly_tower_list, cl = cl, FUN = function(x) {
+  for (i in seq_len(nrow(x))) {
+    magick::image_write(
+      image = image_read(drop(x[i, "tile_array", drop = TRUE][[1]]) / 255),
+      path = x[i, "out_name", drop = TRUE])
+  }
+})
+
+# highprob notower images
+## nyc
+highprob_index <- rep(1:ncores, each = nrow(nyc_highprob) %/% ncores)
+highprob_index <- c(
+  highprob_index,
+  rep(tail(highprob_index, 1), nrow(nyc_highprob) - length(highprob_index))
+)
+
+nyc_highprob_list <- split(nyc_highprob, highprob_index)
+
+pbapply::pblapply(X = nyc_highprob_list, cl = cl, FUN = function(x) {
+  for (i in seq_len(nrow(x))) {
+    magick::image_write(
+      image = image_read(drop(x[i, "tile_array", drop = TRUE][[1]]) / 255),
+      path = x[i, "out_name", drop = TRUE])
+  }
+})
+
+## philly
+highprob_index <- rep(1:ncores, each = nrow(philly_highprob) %/% ncores)
+highprob_index <- c(
+  highprob_index,
+  rep(tail(highprob_index, 1), nrow(philly_highprob) - length(highprob_index))
+)
+
+philly_highprob_list <- split(philly_highprob, highprob_index)
+
+pbapply::pblapply(X = philly_highprob_list, cl = cl, FUN = function(x) {
+  for (i in seq_len(nrow(x))) {
+    magick::image_write(
+      image = image_read(drop(x[i, "tile_array", drop = TRUE][[1]]) / 255),
+      path = x[i, "out_name", drop = TRUE])
+  }
+})
+
+# sample and write notower images
+tower_props <- c(nyc = nrow(nyc_tower_slices),
+                 philly = nrow(philly_tower_slices))
+
+tower_props <- tower_props / sum(tower_props)
+
+## nyc
+nyc_tower_img_count$num_to_write <- ceiling(
+  nyc_tower_img_count$prop * num_notower * tower_props[["nyc"]]
+)
+
+nyc_tower_img_count_list <- split(
+  nyc_tower_img_count,
+  nyc_tower_img_count$img_num
+  )
+
+pbapply::pblapply(X = nyc_tower_img_count_list, cl = cl, FUN = function(rds) {
+  working_name <- file.path("data/curated-training-slices/nyc/nyc-slices",
+                            paste0(unique(x$img_num), "_slices.rds"))
+
+  working <- readRDS(working_name)
+
+  working$img_num <- str_match(working$source_img,
+                               "(.*/)(\\d*)\\.jp2")[, 3]
+
+  working <- merge(working,
+                   nyc_tower_index,
                    by = c("img_num", "tile_id"),
                    all.x = TRUE)
   working <- working[is.na(working$exclude), ]
-  working$geometry <- do.call(c, working$geometry)
-  working <- st_sf(working)
 
-  # identify slices that intersect with tower polygons
-  tower_shp <- st_transform(tower_shp, crs = st_crs(working)$proj4string)
+  num_to_write <- nyc_tower_img_count$num_to_write[nyc_tower_img_count$img_num %in% x]
 
-  tile_intersect <- st_intersects(working, tower_shp)
-  working$tower_intersect <- sapply(tile_intersect,
-                                    function(x) if (length(x) == 0) FALSE else TRUE)
-  rm(tile_intersect)
+  working <- working[sample(seq_len(nrow(working)), num_to_write), ]
 
-  tower <- working[working$tower_intersect == TRUE, ]
+  working$status <- sample(c("train", "validation", "test"),
+                                   size = nrow(working),
+                                   prob = c(.7, .2, .1),
+                                   replace = TRUE)
 
-  # save slices
-  if (nrow(tower) > 0) {
-    # split towers across train/valid/test
-    tower$status <- sample(c("train", "validation", "test"),
-                           size = nrow(tower),
-                           prob = c(.7, .2, .1),
-                           replace = TRUE)
-    tower$out_name <- paste0(base_dir, "/",
-                             tower$status, "/",
-                             "tower/",
-                             tower$img_num, "_",
-                             tower$tile_id, ".png")
+  working$out_name <- paste0(base_dir, "/",
+                             working$status, "/",
+                             "notower/",
+                             working$img_num, "_",
+                             working$tile_id, ".png")
 
-    # identify slices that are contained by water polygons
-    notower <- working[working$tower_intersect == FALSE, ]
-
-    water_shp <- st_transform(water_shp, crs = st_crs(working)$proj4string)
-
-    water_covers <- st_covered_by(notower, water_shp)
-    notower$water_covered <- sapply(water_covers,
-                                    function(x) if (length(x) == 0) FALSE else TRUE)
-    rm(water_covers)
-
-    notower <- notower[notower$water_covered == FALSE,]
-
-    # write all tower slices to `notower` directory so we can sample them later
-    dir.create(file.path(base_dir, "notower", unique(notower$img_num)))
-
-    notower$out_name <- paste0(base_dir, "/",
-                               "notower/",
-                               notower$img_num, "/",
-                               notower$img_num, "_",
-                               notower$tile_id, ".png")
-
-    lapply(list(tower, notower), function(x) {
-      lapply(seq_len(nrow(x)), function(i) {
-        magick::image_write(
-          image = image_read(drop(x[i, "tile_array", drop = TRUE][[1]]) / 255),
-          path = x[i, "out_name", drop = TRUE])
-      })
-    })
+  for (i in seq_len(nrow(working))) {
+    magick::image_write(
+      image = image_read(drop(working[i, "tile_array", drop = TRUE][[1]]) / 255),
+      path = working[i, "out_name", drop = TRUE])
   }
-
-  nrow(tower)
 })
 
-parallel::stopCluster(cl)
-
-# count towers per image
-tower_img <- c(
-  list.files(file.path(base_dir, "train/tower")),
-  list.files(file.path(base_dir, "validation/tower")),
-  list.files(file.path(base_dir, "test/tower"))
+## philly
+philly_tower_img_count$num_to_write <- ceiling(
+  philly_tower_img_count$prop * num_notower * tower_props[["philly"]]
 )
 
-tower_img <- stringr::str_split_fixed(tower_img, "_", 2)[, 1]
+philly_tower_img_count_list <- split(
+  philly_tower_img_count,
+  philly_tower_img_count$img_num
+)
 
-# sample notower slices proportional to tower count
-tower_img_count <- table(tower_img)
+pbapply::pblapply(X = philly_tower_img_count_list, cl = cl, FUN = function(rds) {
+  working_name <- file.path("data/curated-training-slices/philly/philly-slices",
+                            paste0(unique(x$img_num), "_slices.rds"))
 
-total_tower_slices <- sum(tower_img_count)
+  working <- readRDS(working_name)
 
-notower_probs <- sapply(tower_img_count, function(x) x / total_tower_slices)
+  working$img_num <- str_match(working$source_img,
+                               "(.*/)(\\d*)\\.tif")[, 3]
 
-total_notower_slices <- total_tower_slices * 10
+  working <- merge(working,
+                   philly_tower_index,
+                   by = c("img_num", "tile_id"),
+                   all.x = TRUE)
+  working <- working[is.na(working$exclude), ]
 
-notower_counts <- round(notower_probs * total_notower_slices)
+  num_to_write <- philly_tower_img_count$num_to_write[
+    philly_tower_img_count$img_num %in% x
+    ]
 
-# copy sampled files to train/valid/split directories
-ncores <- parallel::detectCores() - 2
-cl <- parallel::makeCluster(ncores, outfile = "c:/users/wfu3/desktop/log.txt")
-parallel::clusterEvalQ(cl, {
-  library(fs)
-})
-parallel::clusterExport(cl, c("base_dir", "tower_img_count", "notower_counts"))
+  working <- working[sample(seq_len(nrow(working)), num_to_write), ]
 
-copied_files <- pbapply::pblapply(seq_along(tower_img_count), function(i) {
-  img_files <- data.frame(
-    file_name = list.files(file.path(base_dir, "notower",
-                                     names(tower_img_count)[i]),
-                           pattern = "\\.png"),
-    file_name_full = list.files(file.path(base_dir, "notower",
-                                          names(tower_img_count)[i]),
-                                pattern = "\\.png", full.names = TRUE),
-    stringsAsFactors = FALSE
-  )
+  working$status <- sample(c("train", "validation", "test"),
+                           size = nrow(working),
+                           prob = c(.7, .2, .1),
+                           replace = TRUE)
 
-  prop_img <- notower_counts[i] / nrow(img_files)
+  working$out_name <- paste0(base_dir, "/",
+                             working$status, "/",
+                             "notower/",
+                             working$img_num, "_",
+                             working$tile_id, ".png")
 
-  img_files <- img_files[sample(c(TRUE, FALSE),
-                                size = nrow(img_files),
-                                prob = c(prop_img, 1 - prop_img),
-                                replace = TRUE)
-                         ,
-                         , drop = FALSE]
-
-  img_files$status <- sample(c("train", "validation", "test"),
-                             size = nrow(img_files),
-                             prob = c(.7, .2, .1),
-                             replace = TRUE)
-
-  img_files$out_name <- paste0(base_dir, "/",
-                              img_files$status, "/",
-                              "notower/",
-                              img_files$file_name)
-
-  fs::file_copy(img_files$file_name_full, img_files$out_name, overwrite = TRUE)
+  for (i in seq_len(nrow(working))) {
+    magick::image_write(
+      image = image_read(drop(working[i, "tile_array", drop = TRUE][[1]]) / 255),
+      path = working[i, "out_name", drop = TRUE])
+  }
 })
 
 parallel::stopCluster(cl)

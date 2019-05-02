@@ -38,6 +38,10 @@ train_tower_model <- function(
   small_layer_size = NULL,
 
   # dense model params
+  dense_structure = list(
+    list(units = 256, dropout = 0.2),
+    list(units = 128, dropout = 0.2)
+  ),
   dense_optimizer = "rmsprop",
   dense_lr = 1e-5,
   dense_steps_per_epoch = 100,
@@ -231,20 +235,26 @@ train_tower_model <- function(
   #### train dense layers ---------------------------------
   model <- keras_model_sequential() %>%
     conv_base %>%
-    layer_flatten() %>%
-    layer_dense(units = 256, activation = "relu") %>%
-    layer_dropout(rate = 0.2) %>%
-    layer_dense(units = 128, activation = "relu") %>%
-    layer_dropout(rate = 0.2)
+    layer_flatten()
+
+  for (i in seq_along(params$dense_structure)) {
+    model <- model %>%
+      layer_dense(units = params$dense_structure[[i]][["units"]],
+                  activation = "relu")
+
+    if (params$dense_structure[[i]][["dropout"]] > 0) {
+      model <- model %>%
+        layer_dropout(rate = params$dense_structure[[i]][["dropout"]])
+    }
+  }
 
   if (params$add_small_final_layer) {
     model <- model %>%
-      layer_dense(units = params$small_layer_size, activation = "relu") %>%
-      layer_dense(units = 1, activation = "sigmoid")
-  } else {
-    model <- model %>%
-      layer_dense(units = 1, activation = "sigmoid")
+      layer_dense(units = params$small_layer_size, activation = "relu")
   }
+
+  model <- model %>%
+    layer_dense(units = 1, activation = "sigmoid")
 
   freeze_weights(conv_base)
 

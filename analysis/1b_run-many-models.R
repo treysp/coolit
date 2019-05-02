@@ -9,9 +9,9 @@ library(abind)
 
 #### meta-parameters -----------------------
 meta_params <- list(
-  img_dir = c("tiles_nyc"),
+  img_dir = c("slices_curated_2019-04-22"),
 
-  base_model = c("vgg16"),
+  base_model = c("vgg16", "vgg19"),
 
   small_final_layer = list(
     list(NA)
@@ -29,7 +29,7 @@ meta_params <- split(meta_params, seq_len(NROW(meta_params)))
 params <- list(
 
   # directories
-  img_base_dir = "data",
+  img_base_dir = "data/model-training-data",
   img_dir = NULL,
   output_dir = "output/multi-model-runs",
 
@@ -50,6 +50,10 @@ params <- list(
   small_layer_size = NA,
 
   # dense model params
+  dense_structure = list(
+    list(units = 256, dropout = 0.2),
+    list(units = 128, dropout = 0.2)
+  ),
   dense_optimizer = "rmsprop",
   dense_lr = 1e-5,
   dense_steps_per_epoch = 100,
@@ -61,7 +65,7 @@ params <- list(
   first_ft_optimizer = "rmsprop",
   first_ft_lr = 1e-5,
   first_ft_steps_per_epoch = 100,
-  first_ft_epochs = 100,
+  first_ft_epochs = 50,
   first_ft_validation_steps = 50,
 
   # second fine-tune model params
@@ -70,13 +74,13 @@ params <- list(
   second_ft_optimizer = "rmsprop",
   second_ft_lr = 5e-6,
   second_ft_steps_per_epoch = 100,
-  second_ft_epochs = 100,
+  second_ft_epochs = 50,
   second_ft_validation_steps = 50
 
 )
 
 #### execution ----------------------------
-for (i in seq_along(meta_params)[1]) {
+for (i in seq_along(meta_params)) {
   curr_params <- meta_params[[i]]
 
   params$img_dir <- curr_params[["img_dir"]]

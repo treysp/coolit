@@ -11,28 +11,23 @@ library(sf)
 # score train/test images
 my_model <- load_model_hdf5(
   "output/multi-model-runs/2019-04-09/models/2019-04-09_16-17-24/model_fine-tune-2.h5"
-  )
+)
 
 temp_scores <- score_test_images(
   "data/tiles_nyc/validation",
   my_model,
   out_filename = "output/multi-model-runs/2019-04-09/models/2019-04-09_16-17-24/predicted-probs_train-validation.csv"
-  )
+)
 
 temp_scores2 <- score_test_images(
-  "data/tiles_nyc/train",
+  "data/model-training-data/slices_curated_2019-04-22/train",
   my_model,
-  out_filename = "output/multi-model-runs/2019-04-09/models/2019-04-09_16-17-24/predicted-probs_train-validation.csv"
+  out_filename = "output/multi-model-runs/2019-04-30/models/2019-04-30_17-16-03/predicted-probs_train.csv"
 )
 
 temp_scores <- rbind(temp_scores, temp_scores2)
 
 # check some scores
-temp_scores <- read.csv(
-  paste0("output/multi-model-runs/2019-04-09/models/",
-         "2019-04-09_16-17-24/predicted-probs_train-validation.csv")
-)
-
 pred <- ROCR::prediction(temp_scores$pred_prob, temp_scores$truth)
 
 message("\nFinal model performance measures:\n",
@@ -101,7 +96,7 @@ for (i in 1:((nrow(highprob_notowers) %/% 24) + 1)) {
 # make raster overlays
 overlay_towers <- temp_scores[
   grepl("990212", temp_scores$img_name) &
-    temp_scores$pred_prob >= 0.1,
+    temp_scores$pred_prob >= 0.02,
   ]
 overlay_towers$tile_id <- as.numeric(stringr::str_match(
   overlay_towers$img_name, "(.*/)\\d*_(\\d*)\\.png")[, 3]
@@ -125,18 +120,6 @@ overlay_towers_sf <- readRDS("output/2019-03-31/sliced_nyc/990212_slices.rds")
 overlay_towers_sf$geometry <- st_sfc(do.call("c", overlay_towers_sf$geometry))
 overlay_towers_sf <- st_sf(overlay_towers_sf)
 
-overlay_towers_sf <- merge(overlay_towers_sf,
-                           overlay_towers,
-                           by = "tile_id")
-
-overlay_towers_sf_high <- merge(overlay_towers_sf,
-                                overlay_towers_high,
-                                by = "tile_id")
-
-overlay_towers_sf_low <- merge(overlay_towers_sf,
-                                overlay_towers_low,
-                                by = "tile_id")
-
 base_raster_path <- "data/source_from-nyc-website/nyc_ortho_jp2/boro_manhattan_sp16/990212.jp2"
 base_raster <- brick(base_raster_path)
 base_raster <- dropLayer(base_raster, 4)
@@ -146,15 +129,60 @@ jp2_xml <- xml2::as_list(xml2::read_xml(paste0(base_raster_path, ".aux.xml")))
 crs(base_raster) <- sf::st_crs(wkt = jp2_xml$PAMDataset$SRS[[1]])$proj4string
 
 nyc_towers <- st_read("data/source_from-nyc-website/nyc_cooling-tower_shapefile")
+
 nyc_towers <- lwgeom::st_transform_proj(nyc_towers,
                                         crs = crs(base_raster)@projargs)
 
-make_raster_overlay(
-  base_raster = base_raster,
-  red_polygon_sf = overlay_towers_sf,
-  green_polygon_sf = overlay_towers_sf_low,
-  blue_polygon_sf = nyc_towers,
-  outfilename = "c:/users/wfu3/desktop/test.tif",
-  write_only = TRUE
-)
+nyc_towers <- st_crop(nyc_towers, st_bbox(base_raster))
+nyc_towers_buffer <- st_buffer(nyc_towers, 20)
 
+make_tower_plot <- function(tower_raster, scores_sf = NULL,
+                            red_tile_ids = NULL, green_tile_ids = NULL,
+                            orange_tile_ids = NULL, tower_sf = NULL, outpath) {
+  png(outpath,
+      width = ncol(tower_raster), height = nrow(tower_raster))
+
+  on.exit(dev.off())
+
+  plotRGB(tower_raster, maxpixels = 1e10)
+
+  if (!is.null(red_tile_ids)) {
+    plot(
+      scores_sf$geometry[scores_sf$tile_id %in% red_tile_ids],
+      col = scales::alpha("red", .4),
+      add = TRUE
+    )
+  }
+
+  if (!is.null(green_tile_ids)) {
+    plot(
+      scores_sf$geometry[scores_sf$tile_id %in% green_tile_ids],
+      col = scales::alpha("green", .4),
+      add = TRUE
+    )
+  }
+
+  if (!is.null(orange_tile_ids)) {
+    plot(
+      scores_sf$geometry[scores_sf$tile_id %in% orange_tile_ids],
+      col = scales::alpha("orange", .4),
+      add = TRUE
+    )
+  }
+
+  if (!is.null(tower_sf)) {
+    plot(
+      tower_sf,
+      col = scales::alpha("blue", .3),
+      add = TRUE
+    )
+  }
+}
+
+make_tower_plot(base_raster,
+                scores_sf = overlay_towers_sf,
+                red_tile_ids = overlay_towers$tile_id,
+                green_tile_ids = overlay_towers_high$tile_id,
+                orange_tile_ids = overlay_towers_low$tile_id,
+                tower_sf = nyc_towers_buffer$geometry,
+                outpath = "c:/users/wfu3/desktop/test.png")

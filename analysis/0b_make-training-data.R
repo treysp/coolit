@@ -1,3 +1,4 @@
+library(coolit)
 library(stringr)
 library(raster)
 library(sf)
@@ -18,8 +19,6 @@ for (i in c("train", "validation", "test")) {
   dir.create(file.path(base_dir, i, "notower"))
 
 }
-
-dir.create(file.path(base_dir, "notower"))
 
 #### NYC preparation --------------------------------------------------------------------
 # get obstructed tower slice list
@@ -122,7 +121,10 @@ philly_tower_slices$out_name <- paste0(base_dir, "/",
                                        philly_tower_slices$status, "/",
                                        "tower/",
                                        philly_tower_slices$img_num, "_",
-                                       philly_tower_slices$tile_id, ".png")
+                                       philly_tower_slices$slice_id, ".png")
+
+philly_tower_index <- philly_tower_slices[, c("img_num", "slice_id")]
+philly_tower_index$exclude <- TRUE
 
 # count tower/img for notower sampling
 philly_tower_img_count <- table(philly_tower_slices$img_num)
@@ -145,7 +147,7 @@ philly_highprob <- lapply(
 philly_highprob <- do.call("rbind", philly_highprob)
 
 philly_highprob$img_num <- str_match(philly_highprob$source_img,
-                                  "(.*/)(\\d*)\\.tif")[, 3]
+                                  "(.*/)(.*)\\.tif")[, 3]
 
 philly_highprob$status <- sample(c("train", "validation", "test"),
                                  size = nrow(philly_highprob),
@@ -156,7 +158,7 @@ philly_highprob$out_name <- paste0(base_dir, "/",
                                    philly_highprob$status, "/",
                                    "notower/",
                                    philly_highprob$img_num, "_",
-                                   philly_highprob$tile_id, ".png")
+                                   philly_highprob$slice_id, ".png")
 
 #### write images ---------------------------------------------------------------------
 # setup cluster
@@ -170,20 +172,18 @@ parallel::clusterEvalQ(cl, {
   library(magick)
 })
 
-parallel::clusterExport(cl, c("slice_exclude", "base_dir",
-                              "tower_shp", "water_shp"))
+parallel::clusterExport(cl, c("base_dir",
+                              "nyc_tower_index", "nyc_tower_img_count",
+                              "philly_tower_index", "philly_tower_img_count"))
+
+out <- list()
 
 # tower images
 ## nyc
-tower_index <- rep(1:ncores, each = nrow(nyc_tower_slices) %/% ncores)
-tower_index <- c(
-  tower_index,
-  rep(tail(tower_index, 1), nrow(nyc_tower_slices) - length(tower_index))
-)
+nyc_tower_list <- split(nyc_tower_slices,
+                        make_split_index(nrow(nyc_tower_slices), ncores))
 
-nyc_tower_list <- split(nyc_tower_slices, tower_index)
-
-pbapply::pblapply(X = nyc_tower_list, cl = cl, FUN = function(x) {
+out[[1]] <- pbapply::pblapply(X = nyc_tower_list, cl = cl, FUN = function(x) {
   for (i in seq_len(nrow(x))) {
     magick::image_write(
       image = image_read(drop(x[i, "tile_array", drop = TRUE][[1]]) / 255),
@@ -192,33 +192,26 @@ pbapply::pblapply(X = nyc_tower_list, cl = cl, FUN = function(x) {
 })
 
 ## philly
-tower_index <- rep(1:ncores, each = nrow(philly_tower_slices) %/% ncores)
-tower_index <- c(
-  tower_index,
-  rep(tail(tower_index, 1), nrow(philly_tower_slices) - length(tower_index))
-)
+philly_tower_list <- split(philly_tower_slices,
+                           make_split_index(nrow(philly_tower_slices), ncores))
 
-philly_tower_list <- split(philly_tower_slices, tower_index)
-
-pbapply::pblapply(X = philly_tower_list, cl = cl, FUN = function(x) {
+out[[2]] <- pbapply::pblapply(X = philly_tower_list, cl = cl, FUN = function(x) {
   for (i in seq_len(nrow(x))) {
+    temp <- drop(x[i, "slice_array", drop = TRUE][[1]])
+    temp[is.na(temp)] <- 255
+
     magick::image_write(
-      image = image_read(drop(x[i, "tile_array", drop = TRUE][[1]]) / 255),
+      image = image_read(temp / 255),
       path = x[i, "out_name", drop = TRUE])
   }
 })
 
 # highprob notower images
 ## nyc
-highprob_index <- rep(1:ncores, each = nrow(nyc_highprob) %/% ncores)
-highprob_index <- c(
-  highprob_index,
-  rep(tail(highprob_index, 1), nrow(nyc_highprob) - length(highprob_index))
-)
+nyc_highprob_list <- split(nyc_highprob,
+                           make_split_index(nrow(nyc_highprob), ncores))
 
-nyc_highprob_list <- split(nyc_highprob, highprob_index)
-
-pbapply::pblapply(X = nyc_highprob_list, cl = cl, FUN = function(x) {
+out[[3]] <- pbapply::pblapply(X = nyc_highprob_list, cl = cl, FUN = function(x) {
   for (i in seq_len(nrow(x))) {
     magick::image_write(
       image = image_read(drop(x[i, "tile_array", drop = TRUE][[1]]) / 255),
@@ -227,18 +220,16 @@ pbapply::pblapply(X = nyc_highprob_list, cl = cl, FUN = function(x) {
 })
 
 ## philly
-highprob_index <- rep(1:ncores, each = nrow(philly_highprob) %/% ncores)
-highprob_index <- c(
-  highprob_index,
-  rep(tail(highprob_index, 1), nrow(philly_highprob) - length(highprob_index))
-)
+philly_highprob_list <- split(philly_highprob,
+                              make_split_index(nrow(philly_highprob), ncores))
 
-philly_highprob_list <- split(philly_highprob, highprob_index)
-
-pbapply::pblapply(X = philly_highprob_list, cl = cl, FUN = function(x) {
+out[[4]] <- pbapply::pblapply(X = philly_highprob_list, cl = cl, FUN = function(x) {
   for (i in seq_len(nrow(x))) {
+    temp <- drop(x[i, "slice_array", drop = TRUE][[1]])
+    temp[is.na(temp)] <- 255
+
     magick::image_write(
-      image = image_read(drop(x[i, "tile_array", drop = TRUE][[1]]) / 255),
+      image = image_read(temp / 255),
       path = x[i, "out_name", drop = TRUE])
   }
 })
@@ -259,9 +250,13 @@ nyc_tower_img_count_list <- split(
   nyc_tower_img_count$img_num
   )
 
-pbapply::pblapply(X = nyc_tower_img_count_list, cl = cl, FUN = function(rds) {
+out[[5]] <- pbapply::pblapply(
+  X = nyc_tower_img_count_list,
+  cl = cl,
+  FUN = function(rds) {
+
   working_name <- file.path("data/curated-training-slices/nyc/nyc-slices",
-                            paste0(unique(x$img_num), "_slices.rds"))
+                            paste0(unique(rds$img_num), "_slices.rds"))
 
   working <- readRDS(working_name)
 
@@ -274,7 +269,7 @@ pbapply::pblapply(X = nyc_tower_img_count_list, cl = cl, FUN = function(rds) {
                    all.x = TRUE)
   working <- working[is.na(working$exclude), ]
 
-  num_to_write <- nyc_tower_img_count$num_to_write[nyc_tower_img_count$img_num %in% x]
+  num_to_write <- rds$num_to_write
 
   working <- working[sample(seq_len(nrow(working)), num_to_write), ]
 
@@ -306,24 +301,26 @@ philly_tower_img_count_list <- split(
   philly_tower_img_count$img_num
 )
 
-pbapply::pblapply(X = philly_tower_img_count_list, cl = cl, FUN = function(rds) {
+out[[6]] <- pbapply::pblapply(
+  X = philly_tower_img_count_list,
+  cl = cl,
+  FUN = function(rds) {
+
   working_name <- file.path("data/curated-training-slices/philly/philly-slices",
-                            paste0(unique(x$img_num), "_slices.rds"))
+                            paste0(unique(rds$img_num), "_slices.rds"))
 
   working <- readRDS(working_name)
 
   working$img_num <- str_match(working$source_img,
-                               "(.*/)(\\d*)\\.tif")[, 3]
+                               "(.*/)(.*)\\.tif")[, 3]
 
   working <- merge(working,
                    philly_tower_index,
-                   by = c("img_num", "tile_id"),
+                   by = c("img_num", "slice_id"),
                    all.x = TRUE)
   working <- working[is.na(working$exclude), ]
 
-  num_to_write <- philly_tower_img_count$num_to_write[
-    philly_tower_img_count$img_num %in% x
-    ]
+  num_to_write <- rds$num_to_write
 
   working <- working[sample(seq_len(nrow(working)), num_to_write), ]
 
@@ -339,8 +336,11 @@ pbapply::pblapply(X = philly_tower_img_count_list, cl = cl, FUN = function(rds) 
                              working$tile_id, ".png")
 
   for (i in seq_len(nrow(working))) {
+    temp <- drop(working[i, "slice_array", drop = TRUE][[1]])
+    temp[is.na(temp)] <- 255
+
     magick::image_write(
-      image = image_read(drop(working[i, "tile_array", drop = TRUE][[1]]) / 255),
+      image = image_read(temp / 255),
       path = working[i, "out_name", drop = TRUE])
   }
 })

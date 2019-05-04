@@ -1,19 +1,16 @@
 #' Slice an image into tiles for scoring with a Keras model
 #'
+#' @param img_object Image object that can be read by \code{\link[raster]{brick}}.
 #' @param img_path Path to image file that can be read by \code{\link[raster]{brick}}.
+#'                 Overridden by `img_object`.
 #'
-#' @param img_xml_wkt_path Optional path to .xml file containing metadata about
-#'                         image in WKT format.
-#' @param wkt_string Optional WKT string containing image projection information.
-#'                   Overridden by `img_xml_wkt_path` if present.
-#' @param proj4_string Optional proj4 string containing image projection information.
-#'                     Overriden by `img_xml_wkt_path` of `wkt_string` if present.
-#'
-#' @param slice_n_rows Number of rows in each tile. See \code{\link{calc_slice_corners}}.
-#' @param slice_n_cols Number of columns in each tile. See \code{\link{calc_slice_corners}}.
+#' @param slice_n_rows Number of rows in each tile.
+#'                     See \code{\link{calc_slice_corners}}. Required.
+#' @param slice_n_cols Number of columns in each tile.
+#'                     See \code{\link{calc_slice_corners}}. Required.
 #'
 #' @param slice_overlap_px Number of pixel overlap in adjacent tiles (in both X and Y directions).
-#'                       See \code{\link{calc_slice_corners}}.
+#'                         See \code{\link{calc_slice_corners}}.
 #'
 #' @param complete_image If TRUE and the tile size and overlap dimensions do not conform to
 #'                       covering the entire source raster/image, an additional row and column
@@ -22,13 +19,25 @@
 #'                       the set of tiles will omit some pixels on the right and bottom side
 #'                       of the source raster/image. See \code{\link{calc_slice_corners}}.
 #'
+#' @param img_xml_wkt_path Optional path to .xml file containing metadata about
+#'                         image in WKT format.
+#' @param wkt_string Optional WKT string containing image projection information.
+#'                   Overridden by `img_xml_wkt_path` if present.
+#' @param proj4_string Optional proj4 string containing image projection information.
+#'                     Overridden by `img_xml_wkt_path` of `wkt_string` if present.
+#'
+#' @param reproject_raster Should raster be re-projected to projection specified in
+#'                         `img_xml_wkt_path`, `wkt_string`, or `proj4_string`?
+#'
+#' @param return_sf Should output data frame be an sf object (default regular data frame)?
+#'
 #' @param verbose Should messages about current step being processes be printed to screen?
 #'
 #' @return Data frame with one row for each tile, containing:
 #' - \code{img_path}
 #' - \code{img_xml_wkt_path} (if present)
 #' - Numeric tile ID number
-#' - Tile corner cells in source jp2 pixel values
+#' - Tile corner cells in source pixel values
 #' - List-column containing each tile's extent based on the source jp2's projected raster
 #' - sf geometry column containing each tile's sf polygon
 #' - List-column containing tile's RGB layers in a 4d array of dimension
@@ -40,16 +49,20 @@
 #' @importFrom raster brick nlayers dropLayer extent crs
 #' @importFrom pbapply pblapply pboptions
 #' @importFrom abind abind
-slice_image <- function(img_path,
+slice_image <- function(img_object, img_path,
                         slice_n_rows, slice_n_cols,
                         slice_overlap_px = 0, complete_image = FALSE,
                         img_xml_wkt_path = NULL,
                         wkt_string = NULL, proj4_string = NULL,
-                        project_raster = FALSE,
+                        reproject_raster = FALSE, return_sf = TRUE,
                         verbose = FALSE) {
   if (!verbose) {
     opb <- pbapply::pboptions(type="none")
     on.exit(pboptions(opb))
+  }
+
+  if (missing(img_object) & missing(img_path)) {
+    stop("One of `img_object` or `img_path` is required.")
   }
 
   if (missing(slice_n_rows) || missing(slice_n_cols)) {
@@ -59,8 +72,17 @@ slice_image <- function(img_path,
   # read image
   if (verbose) message("Reading image.")
 
-  source_brick <- raster::brick(img_path)
+  if (!missing(img_object)) {
+    if (any(c("RasterBrick", "RasterStack") %in% class(img_object))) {
+      source_brick <- img_object
+    } else {
+      source_brick <- raster::brick(img_object)
+    }
+  } else {
+    source_brick <- raster::brick(img_path)
+  }
 
+  # drop layers beyond rgb
   if (nlayers(source_brick) > 3) {
     for (i in seq_len(nlayers(source_brick) - 3)) {
       source_brick <- raster::dropLayer(source_brick, i + 3)
@@ -87,7 +109,7 @@ slice_image <- function(img_path,
 
     }
 
-    if (project_raster == TRUE) {
+    if (reproject_raster == TRUE) {
       source_brick <- projectRaster(
         source_brick,
         res = res(source_brick),
@@ -107,19 +129,24 @@ slice_image <- function(img_path,
     complete_image = complete_image
   )
 
-  paths <- data.frame(source_img = rep(img_path, nrow(slice_data)),
+  slice_data <- cbind(slice_id = seq_len(nrow(slice_data)),
+                      slice_data,
                       stringsAsFactors = FALSE)
 
-  if (!is.null(img_xml_wkt_path)) {
-    paths <- cbind(paths,
-                   source_img_aux = rep(img_xml_wkt_path, nrow(slice_data)),
-                   stringsAsFactors = FALSE)
+  if (!missing(img_path) & !is.null(img_xml_wkt_path)) {
+    slice_data <- cbind(source_img = rep(img_path, nrow(slice_data)),
+                        source_img_aux = rep(img_xml_wkt_path, nrow(slice_data)),
+                        slice_data,
+                        stringAsFactors = FALSE)
+  } else if (!missing(img_path)) {
+    slice_data <- cbind(source_img = rep(img_path, nrow(slice_data)),
+                        slice_data,
+                        stringAsFactors = FALSE)
+  } else if (!missing(img_xml_wkt_path)) {
+    slice_data <- cbind(source_img_aux = rep(img_xml_wkt_path, nrow(slice_data)),
+                        slice_data,
+                        stringAsFactors = FALSE)
   }
-
-  slice_data <- cbind(paths,
-                     slice_id = seq_len(nrow(slice_data)),
-                     slice_data,
-                     stringsAsFactors = FALSE)
 
   slice_extents <- split(slice_data, 1:NROW(slice_data))
 
@@ -146,7 +173,7 @@ slice_image <- function(img_path,
     )
   })
 
-  # create a 4d array for each tile, containing 1 [50, 50, 3] slice
+  # create a 4d array for each tile, containing 1 [slice_n_rows, slice_n_cols, 3] slice
   if (verbose) message("Converting image to array and slicing - may take a minute.")
   source_brick_data <- raster::as.array(source_brick)
 
@@ -161,6 +188,12 @@ slice_image <- function(img_path,
 
     out
   })
+
+  # convert slice_data to sf object
+  if (return_sf) {
+    slice_data$geometry <- st_sfc(do.call("c", slice_data$geometry))
+    slice_data <- st_sf(slice_data)
+  }
 
   # # must transpose each layer to reassemble original brick
   # temp <- crop(source_brick, slice_data$extents[[1]])

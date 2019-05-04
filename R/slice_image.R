@@ -54,7 +54,7 @@ slice_image <- function(img_object, img_path,
                         slice_overlap_px = 0, complete_image = FALSE,
                         img_xml_wkt_path = NULL,
                         wkt_string = NULL, proj4_string = NULL,
-                        reproject_raster = FALSE, return_sf = TRUE,
+                        reproject_raster = FALSE, return_sf = FALSE,
                         verbose = FALSE) {
   if (!verbose) {
     opb <- pbapply::pboptions(type="none")

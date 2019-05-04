@@ -7,7 +7,7 @@
 slice_image(img_object, img_path, slice_n_rows, slice_n_cols,
   slice_overlap_px = 0, complete_image = FALSE,
   img_xml_wkt_path = NULL, wkt_string = NULL, proj4_string = NULL,
-  reproject_raster = FALSE, return_sf = TRUE, verbose = FALSE)
+  reproject_raster = FALSE, return_sf = FALSE, verbose = FALSE)
 }
 \arguments{
 \item{img_object}{Image object that can be read by \code{\link[raster]{brick}}.}

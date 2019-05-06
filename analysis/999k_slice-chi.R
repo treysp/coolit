@@ -13,14 +13,24 @@ my_get_paths <- fs::dir_ls("data/source_from-chi-website/get-responses",
                            type = "file")
 
 my_img_nums <- as.numeric(
-  unique(
     stringr::str_match(my_get_paths, "(.*/).*_.*_(\\d{1,4}).*")[, 3]
-    )
   )
+
+img_num_count <- table(my_img_nums)
+my_img_nums <- as.numeric(names(img_num_count)[img_num_count == 4])
+
+already_sliced <- fs::dir_ls("data/source_from-chi-website/chi-slices",
+                             type = "file")
+
+already_sliced <- as.numeric(
+  stringr::str_match(already_sliced, "(.*/)(\\d{1,4})_slices\\.rds")[,3]
+)
+
+my_img_nums <- my_img_nums[!(my_img_nums %in% already_sliced)]
 
 images_to_slice <- split(my_img_nums, 1:length(my_img_nums))
 
-ncores <- parallel::detectCores() - 1
+ncores <- parallel::detectCores() - 3
 cl <- parallel::makeCluster(ncores)
 parallel::clusterEvalQ(cl, {
   library(coolit)
@@ -104,6 +114,48 @@ pbapply::pblapply(images_to_slice, cl = cl, FUN = function(img_num) {
           file.path(out_dir,
                     paste0(img_num, "_slices.rds")),
           compress = FALSE)
+})
+
+parallel::stopCluster(cl)
+
+# combine slices to create full-size images
+my_proj <- readRDS("data/source_from-chi-website/json-info/chi_json-info_2019-05-02.rds")
+my_proj <- st_crs(wkt = my_proj[[1]]$extent$spatialReference$wkt)$proj4string
+
+ncores <- parallel::detectCores() - 1
+cl <- parallel::makeCluster(ncores)
+parallel::clusterEvalQ(cl, {
+  library(coolit)
+  library(magick)
+  library(sf)
+  library(raster)
+})
+parallel::clusterExport(cl, c("my_proj"))
+
+pbapply::pblapply(X = 1:5573, cl = cl, FUN = function(i) {
+  temp_slices <- readRDS(
+    paste0("data/source_from-chi-website/chi-slices/", i, "_slices.rds")
+  )
+
+  temp_bricks <- lapply(1:nrow(temp_slices), function(j) {
+    out <- brick(drop(temp_slices$slice_array[[j]]))
+
+    extent(out) <- temp_slices$extents[[j]]
+
+    crs(out) <- my_proj
+
+    res(out) <-  c(0.5, 0.5)
+
+    origin(out) <- c(0, 0)
+
+    out
+  })
+
+  temp_img <- do.call("merge", temp_bricks)
+
+  magick::image_write(magick::image_read(as.array(temp_img) / 255),
+                      paste0("data/source_from-chi-website/chi-images/", i, ".png"))
+
 })
 
 parallel::stopCluster(cl)

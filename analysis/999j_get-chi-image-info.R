@@ -29,6 +29,8 @@ chi_json <- lapply(chi, function(x) {
 saveRDS(chi_json, "data/source_from-chi-website/json-info/chi_json-info_2019-05-02.rds")
 
 # extract image bounding boxes from json
+chi_json <- readRDS("data/source_from-chi-website/json-info/chi_json-info_2019-05-02.rds")
+
 chi_img_extent <- lapply(chi_json, function(x) x$extent)
 
 chi_img_bbox <- lapply(chi_img_extent, function(x) {
@@ -55,7 +57,7 @@ chi_img_bbox <- lapply(chi_img_extent, function(x) {
   )
 })
 
-lapply(1:1857, function(x) {
+pbapply::pblapply(5474:5573, function(x) {
   boxes <- chi_img_bbox[[x]]
 
   for (i in seq_along(boxes)) {

@@ -120,7 +120,7 @@ parallel::stopCluster(cl)
 
 # combine slices to create full-size images
 my_proj <- readRDS("data/source_from-chi-website/json-info/chi_json-info_2019-05-02.rds")
-my_proj <- st_crs(wkt = my_proj[[1]]$extent$spatialReference$wkt)$proj4string
+my_proj <- sf::st_crs(wkt = my_proj[[1]]$extent$spatialReference$wkt)$proj4string
 
 ncores <- parallel::detectCores() - 1
 cl <- parallel::makeCluster(ncores)
@@ -132,7 +132,7 @@ parallel::clusterEvalQ(cl, {
 })
 parallel::clusterExport(cl, c("my_proj"))
 
-pbapply::pblapply(X = 1:5573, cl = cl, FUN = function(i) {
+parallel::parLapplyLB(X = 283:5573, cl = cl, fun = function(i) {
   temp_slices <- readRDS(
     paste0("data/source_from-chi-website/chi-slices/", i, "_slices.rds")
   )
@@ -156,6 +156,9 @@ pbapply::pblapply(X = 1:5573, cl = cl, FUN = function(i) {
   magick::image_write(magick::image_read(as.array(temp_img) / 255),
                       paste0("data/source_from-chi-website/chi-images/", i, ".png"))
 
+  rm(temp_slices)
+  rm(temp_bricks)
+  rm(temp_img)
 })
 
 parallel::stopCluster(cl)

@@ -11,7 +11,7 @@ library(abind)
 meta_params <- list(
   img_dir = c("slices_curated_2019-04-22"),
 
-  base_model = c("vgg16", "vgg19"),
+  base_model = c("vgg16"),
 
   small_final_layer = list(
     list(NA)
@@ -69,7 +69,7 @@ params <- list(
   first_ft_validation_steps = 50,
 
   # second fine-tune model params
-  do_second_ft = TRUE,
+  do_second_ft = FALSE,
   second_ft_unfreeze = "block3_conv1",
   second_ft_optimizer = "rmsprop",
   second_ft_lr = 5e-6,

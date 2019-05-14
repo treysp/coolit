@@ -2,6 +2,7 @@ library(raster)
 library(sf)
 library(data.table)
 library(magick)
+library(dplyr)
 
 scores <- readRDS("output/2019-05-07/chi-scores/chi-scores-gt0417-lte1.rds")
 class(scores) <- c("data.frame", "sf")
@@ -42,3 +43,58 @@ parallel::parLapplyLB(X = scores_list, cl = cl, fun = function(to_score) {
 })
 
 parallel::stopCluster(cl)
+
+# compare model scores to towers hand-identified from GRASP coordinates
+model_towers <- c(
+  fs::dir_ls("output/2019-05-07/chi-scores/gt995/tower", type = "file"),
+  fs::dir_ls("output/2019-05-07/chi-scores/gt990_lte995/tower", type = "file"),
+  fs::dir_ls("output/2019-05-07/chi-scores/gt985_lte99/tower", type = "file"),
+  fs::dir_ls("output/2019-05-07/chi-scores/gt98_lte985/tower", type = "file")
+)
+
+model_towers <- str_match(model_towers, "(.*/)*(\\d{1,4})-(\\d{1,4})\\.png$")[, 3:4]
+
+model_towers <- data.frame(
+  img_id = as.numeric(model_towers[, 1]),
+  slice_id = as.numeric(model_towers[, 2]),
+  model_tower = 1
+)
+
+hand_towers <- fs::dir_ls("data/source_from-chi-website/tower-slice-images", type = "file")
+
+hand_towers <- str_match(hand_towers, "(.*/)*(\\d{1,4})_(\\d{1,4})\\.png$")[, 3:4]
+
+hand_towers <- data.frame(
+  img_id = as.numeric(hand_towers[, 1]),
+  slice_id = as.numeric(hand_towers[, 2]),
+  hand_tower = 1
+)
+
+all_towers <- dplyr::full_join(model_towers, hand_towers,
+                               by = c("img_id", "slice_id"))
+
+both_towers <- filter(all_towers, model_tower == 1 & hand_tower == 1)
+model_only_towers <- filter(all_towers, model_tower == 1 & is.na(hand_tower))
+hand_only_towers <- filter(all_towers, is.na(model_tower) & hand_tower == 1)
+
+my_scores <- readRDS("output/2019-05-07/chi-scores/chi-scores-gt0417-lte1.rds")
+my_scores$img_id <- as.numeric(
+  str_match(my_scores$img_name,
+            "(.*/)*(\\d{1,4})_slices_scores\\.rds$")[, 3]
+  )
+
+hand_only_towers <- left_join(hand_only_towers,
+                              my_scores[, c("img_id", "slice_id", "predicted_probs")],
+                              by = c("img_id", "slice_id"))
+
+hand_slices <- fs::dir_ls("c:/users/wfu3/desktop/temp/notower",
+                          type = "file", recursive = TRUE)
+hand_slices <- str_match(hand_slices, "(.*/)*(\\d{1,4})_(\\d{1,4})\\.png")[, 3:4]
+hand_slices <- data.frame(
+  img_id = as.numeric(hand_slices[,1]),
+  slice_id = as.numeric(hand_slices[,2]),
+  hand_slice = 1
+)
+
+model_only_towers <- left_join(model_only_towers, hand_slices,
+                               by = c("img_id", "slice_id"))

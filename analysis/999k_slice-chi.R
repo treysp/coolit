@@ -122,7 +122,18 @@ parallel::stopCluster(cl)
 my_proj <- readRDS("data/source_from-chi-website/json-info/chi_json-info_2019-05-02.rds")
 my_proj <- sf::st_crs(wkt = my_proj[[1]]$extent$spatialReference$wkt)$proj4string
 
-ncores <- parallel::detectCores() - 1
+already_made <- fs::dir_ls("data/source_from-chi-website/chi-images", type = "file")
+already_made <- as.numeric(
+  stringr::str_match(already_made, "(.*/)(\\d{1,4}).*")[, 3]
+)
+
+to_make <- seq_len(
+  length(fs::dir_ls("data/source_from-chi-website/chi-slices", type = "file"))
+  )
+
+to_make <- to_make[!(to_make %in% already_made)]
+
+ncores <- parallel::detectCores() - 10
 cl <- parallel::makeCluster(ncores)
 parallel::clusterEvalQ(cl, {
   library(coolit)
@@ -132,33 +143,36 @@ parallel::clusterEvalQ(cl, {
 })
 parallel::clusterExport(cl, c("my_proj"))
 
-parallel::parLapplyLB(X = 283:5573, cl = cl, fun = function(i) {
+out <- parallel::parLapplyLB(X = to_make, cl = cl, fun = function(i) {
   temp_slices <- readRDS(
     paste0("data/source_from-chi-website/chi-slices/", i, "_slices.rds")
   )
 
-  temp_bricks <- lapply(1:nrow(temp_slices), function(j) {
-    out <- brick(drop(temp_slices$slice_array[[j]]))
+  tryCatch({
+    temp_bricks <- lapply(1:nrow(temp_slices), function(j) {
+      out <- brick(drop(temp_slices$slice_array[[j]]))
 
-    extent(out) <- temp_slices$extents[[j]]
+      extent(out) <- temp_slices$extents[[j]]
 
-    crs(out) <- my_proj
+      crs(out) <- my_proj
 
-    res(out) <-  c(0.5, 0.5)
+      res(out) <-  c(0.5, 0.5)
 
-    origin(out) <- c(0, 0)
+      origin(out) <- c(0, 0)
 
-    out
-  })
+      out
+    })
 
-  temp_img <- do.call("merge", temp_bricks)
+    temp_img <- do.call("merge", temp_bricks)
 
-  magick::image_write(magick::image_read(as.array(temp_img) / 255),
-                      paste0("data/source_from-chi-website/chi-images/", i, ".png"))
+    magick::image_write(magick::image_read(as.array(temp_img) / 255),
+                        paste0("data/source_from-chi-website/chi-images/", i, ".png"))
 
-  rm(temp_slices)
-  rm(temp_bricks)
-  rm(temp_img)
+    rm(temp_slices)
+    rm(temp_bricks)
+    rm(temp_img)
+  },
+  error = function(e) e)
 })
 
 parallel::stopCluster(cl)

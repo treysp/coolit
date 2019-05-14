@@ -32,8 +32,6 @@ parallel::clusterEvalQ(cl, {
 
 parallel::parLapplyLB(X = 1:5573, cl = cl, fun = function(i) {
 
-lapply(X = c(3, 15), FUN = function(i) {
-
   temp_slices <- readRDS(
     paste0("data/source_from-chi-website/chi-slices/",
            i,

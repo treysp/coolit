@@ -1,23 +1,23 @@
 library(stringr)
 library(sf)
 
-temp <- st_read("c:/users/wfu3/desktop/0tileindex")
+index <- st_read("data/source_from-nj-website/nj-images/0tileindex")
 
 counties <- tigris::counties("nj")
 counties <- st_as_sf(counties)
 counties <- counties[counties$NAME == "Union",]
 
-temp <- st_transform(temp, st_crs(counties))
+index <- st_transform(index, st_crs(counties))
 
-temp_int <- st_intersects(temp, counties)
+temp_int <- st_intersects(index, counties)
 
-nj_images <- temp[sapply(temp_int, function(x) length(x) > 0),]
+nj_images <- index[sapply(temp_int, function(x) length(x) > 0),]
 nj_images$file_name <- str_match(nj_images$URL, "(.*/)*(.*)\\.tif$")[, 3]
 nj_images$url_base <- str_match(nj_images$URL, "(.*/)*(.*)\\.tif$")[, 2]
 
-dest_dir <- "c:/users/wfu3/desktop/temp2"
+dest_dir <- "data/source_from-nj-website/nj-images"
 
-for (i in 2:nrow(nj_images)) {
+for (i in seq_len(nrow(nj_images))) {
   Sys.sleep(2)
 
   download.file(

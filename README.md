@@ -1,3 +1,5 @@
+# coolit
+
 coolit is an R package for identify water cooling towers from high-resolution aerial imagery. It consists of functions for:
 
 - Slicing large images into smaller pieces the model can use
@@ -18,7 +20,7 @@ The model training functions allow the user to specify the model architecture, b
 
 coolit requires ortho-rectified aerial imagery at resolution 6 inches per pixel or better. Currently, publicly available satellite imagery does not go below about 1 foot per pixel so cannot be used.
 
-Suitable imagery is available from multiple public sources - the ones we have found or used are described in the [coolit project history](#coolit-project-history) and [Image sources](#image-sources) sections below.
+Suitable imagery is available from multiple public sources - the ones we have found or used are described in the [coolit project history](#project-history) and [Image sources](#image-sources) sections below.
 
 # Project history
 
@@ -34,7 +36,7 @@ We located imagery of Chicago on the [Cook County image server](https://gisimage
 
 I had limited experience with spatial data, no experience with image data, and no experience with computer vision models when I started coolit. This section describes some things I have learned, many of which are likely known by anyone with more experience.
 
-## Building the model itself wasn't that hard
+## 1. Building the model itself wasn't that hard
 
 For this task, the modeling piece was surprisingly easy. Based on the book [Deep Learning with R](), I started off using transfer learning with the VGG16 model base, and that is what I'm still using. 
 
@@ -42,7 +44,7 @@ Experiments with other base models and different dense layer structures showed e
 
 Because there are far more non-tower images than tower images, the model classes are severely 'unbalanced.' I addressed that by weighting the model loss function based on the relative class proportions.
 
-## Model performance is mostly dependent on the data
+## 2. Model performance is mostly dependent on the data
 
 ### Image slice size
 
@@ -71,6 +73,10 @@ As we added cities to the project I had almost 60 million image slices that coul
 I wanted to maximize the information each image provided to the model, so I reasoned that images it incorrectly scored with high probability would improve along the discriminative margin. Therefore, I selected non-tower images scored with probability >0.99 to always include in model training. I also discovered that each new city contained new patterns that fooled the model, so each city contributes these high probability non-tower images.
 
 I need to include at least some 'normal' images during model training. To choose those, I sample slices from parent images with probability proportional to the proportion of tower slices in the image. For example, images with no towers contribute no slices during model training; images with many towers contribute more slices than images with few towers.
+
+## 3. Computational bottlenecks are common
+
+Todo
 
 # Image sources
 

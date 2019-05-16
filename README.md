@@ -6,7 +6,7 @@ coolit is an R package for identify water cooling towers from high-resolution ae
 - Training a convolutional neural network model on slices known to either contain a cooling tower or not
 - Scoring slices with a trained model
 
-This repo contains both functions (as a normal R package does) and code used to apply the functions in the 'analysis' directory. It is an R package that can be installed from Github using `remotes::install_github()`. Hoewver, the installed package will not contain the 'analysis' directory. If you want that code, you should pull the entire repo then build the package locally using devtools.
+This repo contains both functions (as a normal R package does) and code I used to apply the functions in the 'analysis' directory. It is an R package that can be installed from Github using `remotes::install_github()`. Hoewver, the installed package will not contain the 'analysis' directory. If you want that code, you should pull the entire repo then build the package locally using devtools.
 
 # coolit model
 
@@ -14,19 +14,19 @@ coolit identifies images containing a water cooling tower with a convolutional n
 
 Because we have relatively few tower images, it uses transfer learning instead of training a model from scratch. It uses VGG16 as a base model, trains dense layers on top of that base, then simultaneously fine-tunes the last VGG16 and dense layers.
 
-The model training functions allow the user to specify the model architecture, but as of 2019-05-16 I am using one 256-node and one 128-node layer with dropout of 0.2. 
+The model training functions allow the user to specify the model architecture, but as of 2019-05-16 I am using one 256-node and one 128-node layer with dropout of 0.2 for each. 
 
 # coolit data
 
 coolit requires ortho-rectified aerial imagery at resolution 6 inches per pixel or better. Currently, publicly available satellite imagery does not go below about 1 foot per pixel so cannot be used.
 
-Suitable imagery is available from multiple public sources - the ones we have found or used are described in the [coolit project history](#project-history) and [Image sources](#image-sources) sections below.
+Suitable imagery is available from multiple public sources - the ones we have found or used are described in the [project history](#project-history) and [Image sources](#image-sources) sections below.
 
 # Project history
 
 coolit began with known point coordinates of buildings that had cooling towers in New York City, Philadelphia, and Chicago. We used these to label imagery and train our model.
 
-We located imagery for NYC at the [NY State GIS](http://gis.ny.gov/gateway/mg/nysdop_download.cfm) office. We also discovered a publicly available source of spatial data containing specific cooling tower locations at the [NYC Open Data](https://data.cityofnewyork.us/City-Government/Cooling-Tower/miz8-534t) portal. We examined the images intersecting with a tower polygon to identify those that were not visible (either under another structure or mounted sideways such that the fan is not visible from above). We then trained the model on these labeled images.
+We located imagery for NYC at the [NY State GIS](http://gis.ny.gov/gateway/mg/nysdop_download.cfm) office. We also discovered a publicly available source of spatial data containing specific cooling tower locations at the [NYC Open Data](https://data.cityofnewyork.us/City-Government/Cooling-Tower/miz8-534t) portal. We examined the images intersecting with a tower polygon to create labeled imagery. We did not use every polygon because some towers were not visible (either under another structure or mounted sideways such that the fan is not visible from above). We then trained the model on these labeled images.
 
 We located imagery of Philadelphia from the [Pennsylvania Geospatial Data Clearinghouse](http://www.pasda.psu.edu/uci/SearchResults.aspx?Shortcut=aerial). We examined image slices within a 50 foot radius around the coordinate points of building with towers to determine whether they contained a tower. We then re-trained the model on the labeled NYC and Philadelphia data.
 
@@ -34,13 +34,13 @@ We located imagery of Chicago on the [Cook County image server](https://gisimage
 
 # Lessons learned
 
-I had limited experience with spatial data, no experience with image data, and no experience with computer vision models when I started coolit. This section describes some things I have learned, many of which are likely known by anyone with more experience.
+I had limited experience with spatial data, no experience with image data, and no experience with computer vision models when I started coolit. This section describes some things I have learned, some of which are specific to this project and many of which are likely known by anyone with more experience.
 
-## 1. Building the model itself wasn't that hard
+## 1. Building a model that worked well wasn't that hard
 
 For this task, the modeling piece was surprisingly easy. Based on the book [Deep Learning with R](), I started off using transfer learning with the VGG16 model base, and that is what I'm still using. 
 
-Experiments with other base models and different dense layer structures showed equivalent or poorer performance to VGG16. I assume this is in part to the relatively small amount of tower images we have in hand. However, it is also due to my inexperience with these models, and I would welcome input/advice on ways to improve the model.
+Experiments with other base models and different dense layer structures showed equivalent or poorer performance to VGG16. I assume this is in part to the relatively small number of tower images we have in hand. However, it is also due to my inexperience with these models, and I would welcome input/advice on ways to improve the model.
 
 Because there are far more non-tower images than tower images, the model classes are severely 'unbalanced.' I addressed that by weighting the model loss function based on the relative class proportions.
 
@@ -56,9 +56,9 @@ Source imagery seems to come in 5000 pixels square, so I chose 50 pixels square 
 
 I began as a tower presence purist. Often images only contain a portion of a tower, and I labeled all those images as having tower regardless of how much tower it contained. This was a poor strategy.
 
-If one image slice contains 5% of a given tower, the other 95% appears in other slices. Since we care about identifying *towers*, not tower images, scoring any of those images with high probability counts as success.
+If one image slice contains 5% of a given tower, the other 95% appears in other slices. Since we care about identifying *towers*, not *tower images*, scoring any of those images with high probability counts as success.
 
-Subsequently, I re-labeled the image slices such that only images with enough tower for fan blades to be identifiable were specified as having a tower. This is clearly a subjective criterion, but I did all the labeling so it was relatively consistent. Model performance improved significantly once I removed those images.
+Subsequently, I re-labeled the image slices such that only images with enough tower for fan blades to be identifiable were specified as having a tower. This is clearly a subjective criterion, but I did all the labeling so it was relatively consistent within the project. Model performance improved significantly once I removed those images.
 
 ### Borderline towers
 
@@ -78,9 +78,17 @@ I need to include at least some 'normal' images during model training. To choose
 
 Todo
 
+
+## 4. This task has a severe 'rare disease' problem
+
+Todo
+
+
+
 # Image sources
 
 Some states, counties, and cities collect orthoimagery every few years. If those images are publicly available, they are typically hosted by a city or state GIS unit such as those described above for NYC, Philadelphia, and Chicago. We located those by searching Google to identify the relevant party. 
+
 Unfortunately, many places have publicly available imagery that is not of sufficient resolution for tower identification. We have found some other potential image sources, described below.
 
 ## USGS EarthExplorer
@@ -96,7 +104,9 @@ To search for appropriate imagery:
 
 The results are returned by image tile (typically 5000px square). You can select the ones you want, then download them after you register for an account. If you want many images, there is a separate 'Bulk Download' application you can use - information can be found at the [help page](https://lta.cr.usgs.gov/EEHelp/ee_help). I am in a restricted environment, and the necessary port is not open in our firewall for using the bulk download tool.
 
+## NOAA 
 
+Todo
 
   ------------
 

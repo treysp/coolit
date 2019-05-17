@@ -9,7 +9,7 @@ library(abind)
 
 #### meta-parameters -----------------------
 meta_params <- list(
-  img_dir = c("slices_curated_2019-04-22"),
+  img_dir = c("slices_curated_2019-05-16"),
 
   base_model = c("vgg16"),
 
@@ -17,6 +17,12 @@ meta_params <- list(
     list(NA)
     #list(small_layer_size = 4, dense_epochs = 60),
     #list(small_layer_size = 8, dense_epochs = 60)
+  ),
+
+  class_weights = list(
+    list(`1` = 4, `0` = 1),
+    list(`1` = 6, `0` = 1),
+    list(`1` = 8, `0` = 1)
   )
 )
 
@@ -75,7 +81,10 @@ params <- list(
   second_ft_lr = 5e-6,
   second_ft_steps_per_epoch = 100,
   second_ft_epochs = 50,
-  second_ft_validation_steps = 50
+  second_ft_validation_steps = 50,
+
+  # class weights
+  class_weights = NULL
 
 )
 
@@ -85,6 +94,8 @@ for (i in seq_along(meta_params)) {
 
   params$img_dir <- curr_params[["img_dir"]]
   params$base_model <- curr_params[["base_model"]]
+  params$class_weights <- curr_params[["class_weights"]]
+
 
   if (!is.na(curr_params[["small_final_layer"]][[1]][[1]])) {
     params$add_small_final_layer <- TRUE
@@ -97,7 +108,10 @@ for (i in seq_along(meta_params)) {
   message("Current parameter set: \n",
           "   Image = '", curr_params[["img_dir"]], "'\n",
           "   Base model = '", curr_params[["base_model"]], "'\n",
-          "   Small final layer = ", curr_params[["small_final_layer"]], "\n")
+          "   Small final layer = ", curr_params[["small_final_layer"]], "\n",
+          "   Class weights = ",
+            paste0(curr_params[["class_weights"]][[1]][[1]], ":",
+                   curr_params[["class_weights"]][[1]][[2]], "\n"))
 
   do.call("train_tower_model", params)
 }

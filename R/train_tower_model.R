@@ -63,7 +63,10 @@ train_tower_model <- function(
   second_ft_lr = 5e-6,
   second_ft_steps_per_epoch = 100,
   second_ft_epochs = 30,
-  second_ft_validation_steps = 50
+  second_ft_validation_steps = 50,
+
+  # class weights
+  class_weights = NULL
 
 ) {
 
@@ -166,6 +169,15 @@ train_tower_model <- function(
          "must be single numeric values")
   }
 
+  if (!is.null(class_weights)) {
+    if (!is.list(class_weights) || length(class_weights) != 2 ||
+        !is.numeric(class_weights[[1]]) || !is.numeric(class_weights[[2]]) ||
+        length(names(class_weights)) != 2 || ("" %in% names(class_weights))) {
+      stop("Argument `class_weights` must be a named list of length 2 ",
+           "containing numeric values.")
+    }
+  }
+
   # create and error check directories
   params$train_dir <- file.path(params$img_base_dir, params$img_dir, "train")
   params$valid_dir <- file.path(params$img_base_dir, params$img_dir, "validation")
@@ -192,15 +204,19 @@ train_tower_model <- function(
   dir.create(params$models_dir)
 
   # make class weights
-  params$class_weights <- list(
-    `1` = (params$num_train_tower + params$num_train_notower) / params$num_train_tower,
-    `0` = (params$num_train_tower + params$num_train_notower) / params$num_train_notower
-  )
+  if (is.null(class_weights)) {
+    params$class_weights <- list(
+      `1` = (params$num_train_tower + params$num_train_notower) / params$num_train_tower,
+      `0` = (params$num_train_tower + params$num_train_notower) / params$num_train_notower
+    )
 
-  message("\nTower distribution in training data: \n",
-          "   Prop. tower = ", round(1 / params$class_weights$`1`, 3), "\n",
-          "   Prop. no tower = ", round(1 / params$class_weights$`0`, 3)
-  )
+    message("\nTower distribution in training data: \n",
+            "   Prop. tower = ", round(1 / params$class_weights$`1`, 3), "\n",
+            "   Prop. no tower = ", round(1 / params$class_weights$`0`, 3)
+    )
+  } else {
+    params$class_weights <- class_weights
+  }
 
   #### initiate model objects ----------------------------
   train_datagen <- image_data_generator(

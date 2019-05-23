@@ -18,7 +18,8 @@ train_tower_model(img_base_dir = "data/tiles/splits", img_dir = "orig",
   first_ft_validation_steps = 50, do_second_ft = TRUE,
   second_ft_unfreeze = "block3_conv1", second_ft_optimizer = "rmsprop",
   second_ft_lr = 5e-06, second_ft_steps_per_epoch = 100,
-  second_ft_epochs = 30, second_ft_validation_steps = 50)
+  second_ft_epochs = 30, second_ft_validation_steps = 50,
+  class_weights = NULL)
 }
 \description{
 Train tower model with keras
